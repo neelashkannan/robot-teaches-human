@@ -1,0 +1,96 @@
+[
+  {
+    "id": "one",
+    "gloss": "ONE (number 1)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/one",
+    "status": "exact",
+    "instruction": "Show the number one: index finger up, other fingers curled.",
+    "target": [0.8, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Index finger extended.' Middle and ring curled (source silent, standard closed hand). Thumb folded across palm (assumed, source silent). Little finger not modelled. Sign exists on BSL SignBank: https://bslsignbank.ucl.ac.uk/dictionary/regional/one-1.html (video only, no text handshape)."
+  },
+  {
+    "id": "two",
+    "gloss": "TWO (number 2)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/two",
+    "status": "exact",
+    "instruction": "Show the number two: index and middle fingers up, others curled.",
+    "target": [0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Index and middle fingers extended.' Ring curled, thumb folded (assumed). Finger spread not stated in source, set neutral. Little finger not modelled. SignBank: https://bslsignbank.ucl.ac.uk/dictionary/regional/two-1.html (video only)."
+  },
+  {
+    "id": "three",
+    "gloss": "THREE (number 3)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/three",
+    "status": "exact",
+    "instruction": "Show the number three: index, middle and ring fingers up, thumb folded.",
+    "target": [0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Index, middle, and ring fingers extended.' Thumb folded (assumed; source says thumb is not part of it). Real sign curls the little finger, which this hand does not have. Spread neutral. SignBank: https://bslsignbank.ucl.ac.uk/dictionary/regional/three-1.html (video only)."
+  },
+  {
+    "id": "five",
+    "gloss": "FIVE (number 5)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/five",
+    "status": "approximated",
+    "instruction": "Show the number five: open hand, all fingers and thumb out.",
+    "target": [0.0, 0.5, 0.0, 0.3, 0.0, 0.0, 0.0, -0.3],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'All fingers and thumb extended.' Source gives no spread: fan of +/-0.3 and thumb out 0.5 is my estimate for a relaxed open hand. Little finger not modelled, so approximated. Thumb spread sign convention (+ = out to the thumb side) must be confirmed in hand/teacher.py. SignBank: https://bslsignbank.ucl.ac.uk/dictionary/regional/five-1.html (video only)."
+  },
+  {
+    "id": "seven",
+    "gloss": "SEVEN (number 7)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/seven",
+    "status": "approximated",
+    "instruction": "Show seven: thumb and index out like an L, others curled.",
+    "target": [0.0, 0.6, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Thumb and index finger extended - held horizontal.' Middle and ring curled (assumed). The horizontal orientation is not checked by this app, so approximated. Thumb out 0.6 is my estimate for the L shape. SignBank: https://bslsignbank.ucl.ac.uk/dictionary/regional/seven-1.html (video only)."
+  },
+  {
+    "id": "sorry",
+    "gloss": "SORRY",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/sorry",
+    "status": "approximated",
+    "instruction": "Make a closed fist, then circle it on your chest.",
+    "target": [0.8, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": {
+      "type": "circle",
+      "landmark": "wrist",
+      "cycles": 2,
+      "duration_s": 1.5,
+      "note": "Provisional format, stretch goal. Source: 'Closed hand makes a circular motion on chest.' Chest location is not checked; only the fist handshape is marked."
+    },
+    "notes": "Source: 'Closed hand makes a circular motion on chest.' Handshape is a plain fist (thumb folded assumed). Location (chest) and the circle are not judged by the handshape check, so approximated. Not checked against BSL SignBank (page not confirmed)."
+  },
+  {
+    "id": "four",
+    "gloss": "FOUR (number 4)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/four",
+    "status": "not_representable",
+    "instruction": "Show the number four: four fingers up, thumb folded.",
+    "target": [0.8, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Index, middle, ring, and little fingers extended.' Needs the little finger. On this hand the target equals THREE, so it cannot be told apart. Kept out of the demo."
+  },
+  {
+    "id": "nine",
+    "gloss": "NINE (number 9)",
+    "source_url": "https://www.british-sign.co.uk/bsl-dictionary/nine",
+    "status": "not_representable",
+    "instruction": "Show the number nine: thumb and three fingers out, held horizontal.",
+    "target": [0.0, 0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
+    "hold_seconds": 3.0,
+    "movement": null,
+    "notes": "Source: 'Thumb, index, middle, and ring fingers extended - held horizontal.' The only difference from FIVE on this hand is orientation (not checked) and the missing little finger. Kept out of the demo."
+  }
+]

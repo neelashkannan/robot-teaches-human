@@ -94,30 +94,27 @@ def _raw_curl_all(lm: np.ndarray) -> np.ndarray:
 
 
 def _raw_spread(lm: np.ndarray, finger: str) -> float:
-    """Signed angle between the finger base bone and the palm middle-finger axis.
+    """Signed in-palm angle between the finger's first bone (MCP -> next joint) and the palm axis.
 
-    Positive means the finger is on the same side of the middle-finger axis as
-    the thumb; negative means the pinky side.
+    The palm axis is wrist -> middle MCP. Measuring the bone direction, not the knuckle position,
+    is what makes spread follow the finger: the knuckles sit still when you fan your fingers out.
+    The bone is projected onto the palm plane first so bending the knuckle does not read as spread.
+    Positive means toward the thumb side of the axis; negative means the pinky side.
     """
     wrist = lm[0]
     mcp = lm[_MCP[finger]]
-    middle_mcp = lm[_MCP["middle"]]
-    thumb_mcp = lm[_MCP["thumb"]]
+    axis = lm[_MCP["middle"]] - wrist
+    thumb_vec = lm[_MCP["thumb"]] - wrist
+    bone = lm[_MCP[finger] + 1] - mcp
 
-    axis = middle_mcp - wrist
-    base = mcp - wrist
-    thumb_vec = thumb_mcp - wrist
-
-    raw = _angle_between(base, axis)
-
-    # Use the thumb itself to define which side of the palm is the thumb side.
-    palm_normal = np.cross(axis, thumb_vec)
-    side = np.cross(axis, base)
-    norm = float(np.linalg.norm(palm_normal)) * float(np.linalg.norm(side))
-    if norm < 1e-12:
+    # The thumb defines the palm plane and which side of the axis is the thumb side.
+    normal = _normalize(np.cross(axis, thumb_vec))
+    if not normal.any():
         return 0.0
-    sign = 1.0 if float(np.dot(side, palm_normal)) > 0 else -1.0
-    return sign * raw
+    in_plane = bone - float(np.dot(bone, normal)) * normal
+    if float(np.linalg.norm(in_plane)) < 1e-12:
+        return 0.0
+    return float(np.arctan2(np.dot(np.cross(axis, in_plane), normal), np.dot(axis, in_plane)))
 
 
 def _raw_spread_all(lm: np.ndarray) -> np.ndarray:

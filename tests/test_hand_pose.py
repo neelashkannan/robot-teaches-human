@@ -180,3 +180,17 @@ def test_nan_returns_neutral():
 def test_invalid_handedness_raises():
     with pytest.raises(ValueError):
         landmarks_to_vec(_make_hand(), "left")
+
+
+@pytest.mark.parametrize("finger", ("index", "middle", "ring"))
+def test_fanning_a_finger_changes_spread_but_knuckle_stays_put(finger):
+    """Spread follows the finger's bone, not the knuckle position (middle used to read 0 always)."""
+    calib = _calib()
+    lm = _make_hand()
+    mcp, bone = _FINGER_IDX[finger][0], _FINGER_IDX[finger][1:]
+    a = np.deg2rad(10.0)
+    rot = np.array([[np.cos(a), -np.sin(a), 0.0], [np.sin(a), np.cos(a), 0.0], [0.0, 0.0, 1.0]])
+    for j in bone:
+        lm[j] = lm[mcp] + rot @ (lm[j] - lm[mcp])
+    v = landmarks_to_vec(lm, "Right", calib)
+    assert v[FINGERS.index(finger) * 2 + 1] == pytest.approx(a / calib.max_spread[FINGERS.index(finger)], abs=0.02)
