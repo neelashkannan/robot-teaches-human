@@ -56,6 +56,7 @@ def _valid_vec(v) -> bool:
 # spread at all (the teacher hand ignores it too), so spread is marked loosely and only on fingers
 # the sign holds out.
 SPREAD_TOL = 0.3
+THUMB_TOL = 0.4
 SPREAD_IGNORED_ABOVE_CURL = 0.8
 
 
@@ -82,8 +83,12 @@ def compare(user, target, tol: float = 0.15, spread_tol: float = SPREAD_TOL) -> 
     worst_norm = -1.0
     for i, finger in enumerate(FINGERS):
         c = curl_err_norm[i]
-        s = spread_err_norm[i]
-        ok = abs(c) <= tol and abs(s) <= spread_tol
+        # The thumb moves out of the image plane and is the hardest finger for a webcam to read,
+        # so it gets a wider curl tolerance and its spread is not marked at all.
+        is_thumb = finger == "thumb"
+        finger_tol = max(tol, THUMB_TOL) if is_thumb else tol
+        s = 0.0 if is_thumb else spread_err_norm[i]
+        ok = abs(c) <= finger_tol and abs(s) <= spread_tol
         per_finger.append(
             FingerResult(
                 ok=ok,
@@ -92,7 +97,7 @@ def compare(user, target, tol: float = 0.15, spread_tol: float = SPREAD_TOL) -> 
             )
         )
         if not ok:
-            err = max(abs(c), abs(s) * tol / spread_tol)
+            err = max(abs(c) * tol / finger_tol, abs(s) * tol / spread_tol)
             if err > worst_norm:
                 worst_norm = err
                 worst_idx = i

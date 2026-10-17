@@ -301,3 +301,33 @@ def landmarks_to_vec(
         out[i * 2 + 1] = float(np.clip(s, -1.0, 1.0))
 
     return vec.clamp(out)
+
+
+def hand_quality(lm_img: np.ndarray, margin: float = 0.02) -> tuple[bool, str]:
+    """Can this view be marked fairly? Takes the 21 normalised IMAGE landmarks (x, y in 0..1).
+
+    A webcam reads fingers badly when the hand is cut off, seen edge-on, or pointing at the camera
+    (fingers foreshortened, thumb out of plane). Return (True, "") when the view is usable, else
+    (False, one short instruction for the person). Marking should be paused, not failed, when False.
+    """
+    arr = np.asarray(lm_img, dtype=float)
+    if arr.shape[0] != 21 or arr.shape[1] < 2 or not np.isfinite(arr).all():
+        return False, "No hand detected."
+    xy = arr[:, :2]
+    if (xy < margin).any() or (xy > 1.0 - margin).any():
+        return False, "Show the whole hand inside the picture."
+
+    wrist, index_mcp, middle_mcp, little_mcp = xy[0], xy[5], xy[9], xy[17]
+    a, b = index_mcp - wrist, little_mcp - wrist
+    cross = abs(a[0] * b[1] - a[1] * b[0])
+    if cross / max(np.linalg.norm(a) * np.linalg.norm(b), 1e-9) < 0.45:
+        return False, "Turn your palm toward the camera."
+
+    axis = middle_mcp - wrist
+    length = float(np.linalg.norm(axis))
+    if length < 0.04:
+        return False, "Hold your hand closer to the camera."
+    # Fingers should point up the picture (image y grows downward).
+    if -axis[1] / length < np.cos(np.deg2rad(55.0)):
+        return False, "Point your fingers up."
+    return True, ""
