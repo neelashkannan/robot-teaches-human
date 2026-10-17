@@ -41,6 +41,7 @@ class Sign:
     target: np.ndarray
     hold_seconds: float
     movement: dict | None
+    view: str = "palm"  # "palm": marked only palm-forward, fingers up; "any": made side-on or on the body
 
     @property
     def status_label(self) -> str:
@@ -70,6 +71,7 @@ def _parse_sign(entry: dict) -> Sign | None:
         target=clamp(target),
         hold_seconds=float(entry.get("hold_seconds", 3.0)),
         movement=entry.get("movement"),
+        view=entry.get("view", "palm"),
     )
 
 
@@ -283,8 +285,9 @@ class Session:
         return lines
 
 
-TOGETHER_HOLD_S = 1.0  # per sign when signing the whole statement
-DEMO_STEP_S = 1.5  # robot shows each sign of the statement this long before the learner's turn
+LEARN_HOLD_S = 1.5  # per sign when learning a statement's signs one by one
+TOGETHER_HOLD_S = 0.8  # per sign when signing the whole statement
+DEMO_STEP_S = 1.2  # robot shows each sign of the statement this long before the learner's turn
 
 
 class StatementLesson:
@@ -299,8 +302,10 @@ class StatementLesson:
 
     def __init__(self, statement: Statement):
         self.statement = statement
-        self.learn = Session(list(statement.signs))
-        self.together = Session([replace(s, hold_seconds=TOGETHER_HOLD_S) for s in statement.signs])
+        # A statement is marked on handshapes only: the movement is in each instruction but not
+        # checked, so a sign like SORRY (circle on the chest) does not hold the whole sentence up.
+        self.learn = Session([replace(s, hold_seconds=LEARN_HOLD_S, movement=None) for s in statement.signs])
+        self.together = Session([replace(s, hold_seconds=TOGETHER_HOLD_S, movement=None) for s in statement.signs])
         self.round = self.learn
         self.demo_start: float | None = None
 

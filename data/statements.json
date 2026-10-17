@@ -30,7 +30,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Index finger points at signer.' (the same sign covers I). Same handshape as ONE; the meaning is the pointing direction, which this hand (no wrist) cannot show and the checker does not judge, so approximated: handshape only. Kept out of signs.json for that reason (it would duplicate ONE there); it is only taught inside a statement. The instruction says 'from the side' because a finger pointing straight back at the signer points away from the webcam and MediaPipe reads it as curled (seen live, 17 Oct: index read 98-123 degrees); side-on it reads straight. Thumb folded assumed (source silent)."
+      "notes": "Source: 'Index finger points at signer.' (the same sign covers I). Same handshape as ONE; the meaning is the pointing direction, which this hand (no wrist) cannot show and the checker does not judge, so approximated: handshape only. Kept out of signs.json for that reason (it would duplicate ONE there); it is only taught inside a statement. The instruction says 'from the side' because a finger pointing straight back at the signer points away from the webcam and MediaPipe reads it as curled (seen live, 17 Oct: index read 98-123 degrees); side-on it reads straight. Thumb folded assumed (source silent).",
+      "view": "any"
     },
     {
       "id": "you",
@@ -50,7 +51,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Point with index finger at the person being referred to.' Same handshape as ONE and ME; the pointing direction is the meaning and is not checked. 'Side-on' because a finger pointing at the webcam is foreshortened and reads as curled (same problem as ME). Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Point with index finger at the person being referred to.' Same handshape as ONE and ME; the pointing direction is the meaning and is not checked. 'Side-on' because a finger pointing at the webcam is foreshortened and reads as curled (same problem as ME). Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "my",
@@ -70,7 +72,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Closed hand held to chest.' Also covers mine. Same handshape as SORRY (fist, thumb folded assumed); the chest location is not checked. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Closed hand held to chest.' Also covers mine. Same handshape as SORRY (fist, thumb folded assumed); the chest location is not checked. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "good",
@@ -90,7 +93,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Make short forward movement using closed hand with thumb up (1 or 2 hands).' Also covers great (and hi/hello, which the phrasebook sends to HELLO instead). Thumb spread 0.3 is my estimate for a thumb held up beside the fist. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Make short forward movement using closed hand with thumb up (1 or 2 hands).' Also covers great (and hi/hello, which the phrasebook sends to HELLO instead). Thumb spread 0.3 is my estimate for a thumb held up beside the fist. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "thank-you",
@@ -110,7 +114,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Flat hand starts with fingertips on chin. Hand moves down and away from signer.' Also covers thanks and please. Flat hand = all four robot fingers straight, thumb alongside; little finger not modelled. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Flat hand starts with fingertips on chin. Hand moves down and away from signer.' Also covers thanks and please. Flat hand = all four robot fingers straight, thumb alongside; little finger not modelled. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "hello",
@@ -150,7 +155,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Flat dominant hand moves down chest then twists out.' Also covers need. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Flat dominant hand moves down chest then twists out.' Also covers need. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "morning",
@@ -161,16 +167,17 @@
       "target": [
         0.0,
         0.0,
-        0.2,
+        0.3,
         0.0,
-        0.2,
+        0.3,
         0.0,
-        0.2,
+        0.3,
         0.0
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Dominant hand bent. Fingertips tap far side of chest then near side of chest.' A bent hand bends at the knuckles, which the curl measure (middle and end joints) reads as nearly straight, so the target is a slight curl (0.2). Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Dominant hand bent. Fingertips tap far side of chest then near side of chest.' A bent hand bends at the knuckles, which the curl measure (middle and end joints) reads as nearly straight, so the target is a partial curl (0.3): with the 0.35 tolerance that accepts a flat to clearly bent hand but not a fist. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "afternoon",
@@ -190,7 +197,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: \"Tips of index and middle finger ('N' shape) touch chin then wrist twists so fingertips are facing forwards.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: \"Tips of index and middle finger ('N' shape) touch chin then wrist twists so fingertips are facing forwards.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "name",
@@ -210,7 +218,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: \"Tips of index and middle fingers ('N' shape) touch forehead. Hand twists forwards at wrist until fingers are facing forwards in front of face.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: \"Tips of index and middle fingers ('N' shape) touch forehead. Hand twists forwards at wrist until fingers are facing forwards in front of face.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "deaf",
@@ -230,7 +239,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: \"Index and middle fingers extended ('N' shape) touch ear.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: \"Index and middle fingers extended ('N' shape) touch ear.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     },
     {
       "id": "drink",
@@ -250,7 +260,8 @@
       ],
       "hold_seconds": 3.0,
       "movement": null,
-      "notes": "Source: 'Dominant hand mimes drinking out of a glass.' Also covers glass, tumbler, beer. Handshape is a C around an imagined glass: fingers half curled, thumb out opposite them (my estimate, source silent). Approximated: only the handshape is checked; location and movement are not."
+      "notes": "Source: 'Dominant hand mimes drinking out of a glass.' Also covers glass, tumbler, beer. Handshape is a C around an imagined glass: fingers half curled, thumb out opposite them (my estimate, source silent). Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
     }
   ],
   "words": {

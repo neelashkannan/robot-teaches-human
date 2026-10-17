@@ -30,11 +30,15 @@ class CircleCheck:
         self.progress = 0.0
 
     def update(self, now: float, wrist, hand_size: float) -> float:
-        """wrist is (x, y) in image space; hand_size in the same units. Returns progress 0..1."""
-        if wrist is None or not hand_size or hand_size <= 0 or not np.isfinite(hand_size):
-            self.reset()
-            return 0.0
-        self._pts.append((float(now), float(wrist[0]), float(wrist[1]), float(hand_size)))
+        """wrist is (x, y) in image space; hand_size in the same units. Returns progress 0..1.
+
+        A frame with no usable wrist (hand dipped out of the picture, marking paused) adds nothing
+        but does not wipe the path: drawing circles on the chest loses the wrist every few frames,
+        and resetting there meant SORRY could never finish. Old points still age out of the window.
+        """
+        usable = wrist is not None and hand_size and hand_size > 0 and np.isfinite(hand_size)
+        if usable:
+            self._pts.append((float(now), float(wrist[0]), float(wrist[1]), float(hand_size)))
         while self._pts and now - self._pts[0][0] > self.window_s:
             self._pts.popleft()
         self.progress = self._measure()

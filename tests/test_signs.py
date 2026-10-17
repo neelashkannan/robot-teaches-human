@@ -189,7 +189,7 @@ def test_statement_with_unknown_sign_raises(tmp_path):
 
 
 def test_statement_lesson_learn_then_watch_then_sign_it_all():
-    from hand.signs import DEMO_STEP_S, TOGETHER_HOLD_S, StatementLesson, statement_from_text
+    from hand.signs import DEMO_STEP_S, LEARN_HOLD_S, TOGETHER_HOLD_S, StatementLesson, statement_from_text
 
     # ME GOOD: neither sign has a movement check, so a steady matching hand passes on the hold alone.
     lesson = StatementLesson(statement_from_text("I'm good"))
@@ -205,14 +205,14 @@ def test_statement_lesson_learn_then_watch_then_sign_it_all():
 
     # Round 1: each sign on its own, normal hold.
     assert lesson.heading.startswith('"I\'m good"  Learn sign 1 of 2: ME')
-    hold_until_passed(3.0)
+    hold_until_passed(LEARN_HOLD_S)
     assert lesson.sign.id == "good" and lesson.demo_sign(t) is None
-    hold_until_passed(3.0)
+    hold_until_passed(LEARN_HOLD_S)
 
     # Round 2 opens with the robot signing the whole statement; marking is paused meanwhile.
     lesson.update(ok_result(), t)
     assert lesson.demo_sign(t).id == "me"
-    assert lesson.demo_sign(t + DEMO_STEP_S).id == "good"
+    assert lesson.demo_sign(t + DEMO_STEP_S + 0.05).id == "good"
     assert lesson.update(ok_result(), t + 0.5) == (0.0, False)
     t += 2 * DEMO_STEP_S + 0.1
     assert lesson.demo_sign(t) is None
@@ -228,7 +228,7 @@ def test_statement_lesson_learn_then_watch_then_sign_it_all():
     assert any(line.startswith("ME (I)") and "passed" in line for line in card)
 
     lesson.restart()
-    assert not lesson.finished and lesson.sign.id == "me" and lesson.sign.hold_seconds == 3.0
+    assert not lesson.finished and lesson.sign.id == "me" and lesson.sign.hold_seconds == LEARN_HOLD_S
 
 
 def test_statement_lesson_skip_and_back_cross_rounds():
@@ -289,3 +289,22 @@ def test_greetings_and_skipped_words_stay_visible():
     lesson.skip()  # into round two: the note stays
     assert "welcome" in lesson.note
     assert "No sign yet for: night (needs two hands)" in lesson.scorecard()[1]
+
+
+def test_side_on_statement_signs_are_marked_with_framing_checks_only():
+    from hand.signs import load_statement, statement_from_text
+
+    good_morning = statement_from_text("good morning, I'm sorry")
+    views = {s.id: s.view for s in good_morning.signs}
+    assert views == {"good": "any", "morning": "any", "me": "any", "sorry": "any"}
+    assert {s.id for s in load_signs() if s.view != "palm"} == {"sorry"}  # number signs keep the full gate
+    assert load_statement().signs[0].view == "any"
+
+
+def test_statement_sorry_is_marked_on_the_fist_alone():
+    from hand.signs import StatementLesson, load_statement
+
+    lesson = StatementLesson(load_statement())  # ME SORRY
+    lesson.skip()
+    assert lesson.sign.id == "sorry" and lesson.move is None
+    assert next(s for s in load_signs() if s.id == "sorry").movement  # the sign set keeps the circle

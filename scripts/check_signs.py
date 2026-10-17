@@ -18,6 +18,8 @@ STATUSES = {"exact", "approximated", "not_representable", "unverified"}
 USABLE = {"exact", "approximated"}
 KEYS = {"id", "gloss", "source_url", "status", "instruction", "target", "hold_seconds", "movement", "notes"}
 STATEMENT_KEYS = {"id", "english", "gloss", "signs", "notes"}
+OPTIONAL_KEYS = {"view"}
+VIEWS = {"palm", "any"}  # palm: view-quality gate in full; any: sign is made side-on, gate checks framing only
 MAX_INSTRUCTION_WORDS = 12
 MIN_USABLE, MAX_USABLE = 5, 6
 NEAR_IDENTICAL = 0.3  # max abs difference across the 8 numbers below which two demo signs are too alike
@@ -38,9 +40,11 @@ def check_entries(entries: list, seen: set[str]) -> list[dict]:
         if not isinstance(s, dict):
             fail(f"{sid}: not an object")
             continue
-        if set(s) != KEYS:
-            fail(f"{sid}: keys differ (missing {sorted(KEYS - set(s))}, extra {sorted(set(s) - KEYS)})")
+        if not KEYS <= set(s) <= KEYS | OPTIONAL_KEYS:
+            fail(f"{sid}: keys differ (missing {sorted(KEYS - set(s))}, extra {sorted(set(s) - KEYS - OPTIONAL_KEYS)})")
             continue
+        if s.get("view", "palm") not in VIEWS:
+            fail(f"{sid}: view must be one of {sorted(VIEWS)}")
         if not isinstance(s["id"], str) or not s["id"]:
             fail(f"{sid}: id must be a non-empty string")
         elif s["id"] in seen:

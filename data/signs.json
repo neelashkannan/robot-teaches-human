@@ -62,6 +62,7 @@
     "instruction": "Make a closed fist, then circle it on your chest.",
     "target": [0.8, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0],
     "hold_seconds": 3.0,
+    "view": "any",
     "movement": {
       "type": "circle",
       "landmark": "wrist",

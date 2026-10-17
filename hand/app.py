@@ -1,11 +1,13 @@
 """One window: selfie webcam with per-finger marking | teacher hand showing the sign (| mirror hand).
 
-Starts in BROWSE mode: move through every sign freely; marking and the hold ring run but never
-block. `t` switches to PRACTICE (a pass advances, the end shows a scorecard).
+Starts in PRACTICE mode: a pass moves on to the next sign, the end shows a scorecard. `t` switches
+to BROWSE (move through every sign freely; a pass is recorded but you stay until you press next).
 Keys: Right/n next, Left/b previous, 1-9 jump to a sign, r replay the teacher's pose slowly,
       f force-pass, t browse/practice, q quit;
       s say a statement: type it, Enter teaches it with the phrasebook's signs (learn each sign,
         watch the robot sign it all, sign it back); Enter on an empty line returns to the sign set;
+      g strict view check on/off (adds "palm toward the camera, fingers up"; off by default, when
+        marking only pauses for a hand that is out of the picture or too small),
       c calibrate (10 s: 2 s get ready, 3 s open hand, 2 s get ready, 3 s fist),
       m toggle the mirror hand (a second sim hand copying you),
       p drop the loose objects on the bench again.
@@ -13,6 +15,8 @@ Keys: Right/n next, Left/b previous, 1-9 jump to a sign, r replay the teacher's 
 Frames stay in memory: nothing is saved, encoded or sent anywhere.
 Run: .venv/bin/python -m hand.app        (--say "good morning" starts on that statement,
                                           --statement starts on "I'm sorry." (ME SORRY),
+                                          --browse starts in browse mode,
+                                          --strict-view starts with the strict view check on,
                                           --debug prints the raw finger angles twice a second)
 """
 from __future__ import annotations
@@ -25,7 +29,8 @@ import cv2
 import numpy as np
 
 from hand.compare import compare
-from hand.hand_pose import _raw_curl_all, _raw_spread_all, fit_calibration, hand_quality, landmarks_to_vec
+from hand.hand_pose import (MIN_CAL_FRAMES, _raw_curl_all, _raw_spread_all, fit_calibration, hand_quality,
+                            landmarks_to_vec)
 from hand.signs import (CAPTION, Session, StatementLesson, load_signs, load_statement, phrasebook_words,
                         statement_from_text)
 from hand.teacher import Teacher
@@ -48,7 +53,10 @@ SMOOTH = 0.5  # weight of the new HandVec in the mirror hand's low-pass
 PASSED_BANNER_S = 1.5
 REPLAY_S = 2.5  # slow teacher replay: open hand -> sign
 HINT_NAV = "Right/n next   Left/b previous   1-9 jump   r replay   f force-pass   t browse/practice   q quit"
-HINT_OTHER = "s say a statement   c calibrate   m mirror hand   p drop objects"
+HINT_OTHER = "s say a statement   g strict view check   c calibrate   m mirror hand   p drop objects"
+# The app's view gate: a few points off the edge (a wrist near the bottom, a fist on the chest) is
+# still markable. Seen live: the strict gate (any point off) paused most chest-height frames.
+GATE_MAX_OFF = 4
 MAX_TYPED_CHARS = 60
 TYPED_BANNER_S = 4.0
 # cv2.waitKeyEx arrow codes differ by platform (macOS Cocoa, Linux GTK/X11, Windows)
@@ -172,7 +180,7 @@ def typing_lines(typed: str, words: list[str]) -> list[tuple]:
     ]
 
 
-def debug_line(sign_id, world, vec, result) -> str:
+def debug_line(sign_id, world, vec, result, paused: str = "") -> str:
     """Raw angles (degrees) behind the HandVec, for tuning the default calibration and tolerances."""
     curl = np.rad2deg(_raw_curl_all(world))
     spread = np.rad2deg(_raw_spread_all(world))
@@ -180,7 +188,7 @@ def debug_line(sign_id, world, vec, result) -> str:
     return (f"[{sign_id}] curl deg " + " ".join(f"{f[0].upper()}{c:4.0f}" for f, c in zip(FINGERS, curl))
             + " | spread deg " + " ".join(f"{f[0].upper()}{s:4.0f}" for f, s in zip(FINGERS, spread))
             + " | vec " + " ".join(f"{x:+.2f}" for x in vec)
-            + (" | fix " + ",".join(fix) if fix else " | ok"))
+            + (f" | paused: {paused}" if paused else " | fix " + ",".join(fix) if fix else " | ok"))
 
 
 def scorecard_image(session, width) -> np.ndarray:
@@ -196,6 +204,12 @@ def scorecard_image(session, width) -> np.ndarray:
 def main() -> int:
     argv = sys.argv[1:]
     debug = "--debug" in argv
+    # The palm-toward-camera / fingers-up checks are opt-in (g): seen live, they paused a correct,
+    # palm-forward ONE on every frame. Framing (whole hand in the picture, big enough) always applies.
+    strict_view = "--strict-view" in argv
+    # Practice by default: seen live, browse mode's "pass, then stay on the sign" looked like a hold
+    # ring that never finishes.
+    start_browse = "--browse" in argv
     debug_next = 0.0
     say = argv[argv.index("--say") + 1] if "--say" in argv[:-1] else None
     statement = statement_from_text(say) if say else None
@@ -214,7 +228,7 @@ def main() -> int:
         return 1
     tracker = HandTracker()
     teacher = PoseView()
-    session = StatementLesson(statement) if statement else Session(signs, browse=True)
+    session = StatementLesson(statement) if statement else Session(signs, browse=start_browse)
     replay_t0 = None  # start time of a slow teacher replay (key r)
     mirror = None
     calib = None
@@ -236,7 +250,11 @@ def main() -> int:
         vec = landmarks_to_vec(tracker.world, hand, calib) if lm is not None else None
         # An unreliable view (cut off, edge-on, pointing at the camera) pauses marking: no
         # red/green, no hold progress, nothing counted against the learner.
-        usable, reason = hand_quality(lm) if lm is not None else (False, "")
+        if lm is None:
+            usable, reason = False, ""
+        else:  # side-on signs (GOOD, ME, SORRY on the chest) never get the orientation checks
+            side_on = not session.finished and session.sign.view == "any"
+            usable, reason = hand_quality(lm, orientation=strict_view and not side_on, max_off=GATE_MAX_OFF)
 
         step_text = None
         if cal_start is not None:
@@ -244,15 +262,23 @@ def main() -> int:
             for name, dur, bucket in CAL_STEPS:
                 if el < dur:
                     step_text = f"{name}  ({dur - el:.0f}s)"
-                    if bucket and tracker.world is not None and usable:
+                    # framing only: a fist is often held side-on, and curl needs no palm-forward view
+                    if bucket and tracker.world is not None and lm is not None and hand_quality(
+                            lm, orientation=False, max_off=GATE_MAX_OFF)[0]:
                         cal_frames[bucket].append(tracker.world.copy())
                     break
                 el -= dur
             if step_text is None:
-                calib = fit_calibration(cal_frames["open"], cal_frames["fist"])
+                n_open, n_fist = len(cal_frames["open"]), len(cal_frames["fist"])
+                enough = n_open >= MIN_CAL_FRAMES and n_fist >= MIN_CAL_FRAMES
+                calib = fit_calibration(cal_frames["open"], cal_frames["fist"]) if enough else calib
                 cal_start = None
                 session.repeat()
-                print(f"calibrated from {len(cal_frames['open'])} open and {len(cal_frames['fist'])} fist frames")
+                banner, banner_until, banner_color = (
+                    ("Calibrated to your hand.", now + TYPED_BANNER_S, GREEN) if enough else
+                    (f"Calibration missed your hand ({n_open} open, {n_fist} fist frames): kept the previous one. "
+                     "Press c to try again.", now + TYPED_BANNER_S, ORANGE))
+                print(f"calibrated from {n_open} open and {n_fist} fist frames" + ("" if enough else " (too few, ignored)"))
 
         if session.finished:
             card = scorecard_image(session, int(frame.shape[1] * H / frame.shape[0]) + H)
@@ -274,12 +300,14 @@ def main() -> int:
                     trail.append((int(lm[0][0] * frame.shape[1]), int(lm[0][1] * frame.shape[0]), now))
                 progress, done = session.update(result, now, wrist, size)
                 if done:
-                    banner, banner_until, banner_color = f"Passed: {was}", now + PASSED_BANNER_S, GREEN
+                    banner, banner_until, banner_color = (
+                        f"Passed: {was}" + ("   Right arrow or n: next sign" if session.browse else ""),
+                        now + (2 * PASSED_BANNER_S if session.browse else PASSED_BANNER_S), GREEN)
                     progress = 0.0
             else:
                 progress = 0.0
             if debug and vec is not None and now >= debug_next:
-                print(debug_line(sign.id, tracker.world, vec, result), flush=True)
+                print(debug_line(sign.id, tracker.world, vec, result, "" if usable else reason), flush=True)
                 debug_next = now + 0.5
 
         demo = session.demo_sign(now) if not session.finished else None
@@ -367,7 +395,7 @@ def main() -> int:
         if typing is not None:
             if k in (13, 10):
                 if not typing.strip():
-                    session = Session(signs, browse=True)
+                    session = Session(signs, browse=start_browse)
                     banner, banner_until = "", 0.0
                 elif (typed := statement_from_text(typing)) is None:
                     banner, banner_until, banner_color = ("None of those words has a sign yet.",
@@ -388,6 +416,12 @@ def main() -> int:
             break
         elif ch == "s":
             typing = ""
+        elif ch == "g":
+            strict_view = not strict_view
+            banner, banner_until, banner_color = (
+                "Strict view check on: palm toward the camera, fingers up" if strict_view else
+                "Strict view check off: marking only needs the whole hand in the picture",
+                now + TYPED_BANNER_S, YELLOW)
         elif ch == "c":
             cal_start = time.time()
             cal_frames = {"open": [], "fist": []}

@@ -145,6 +145,10 @@ def _default_calibration() -> Calibration:
     )
 
 
+# A median over fewer frames than this is one noisy webcam reading, worse than the measured defaults.
+MIN_CAL_FRAMES = 5
+
+
 def fit_calibration(
     open_frames: Sequence[np.ndarray],
     fist_frames: Sequence[np.ndarray],
@@ -155,7 +159,7 @@ def fit_calibration(
     Falls back to the default calibration if too few frames are supplied or
     the measured range is not monotonic.
     """
-    if not open_frames or not fist_frames:
+    if len(open_frames) < MIN_CAL_FRAMES or len(fist_frames) < MIN_CAL_FRAMES:
         return _default_calibration()
 
     open_curls = np.array([_raw_curl_all(f) for f in open_frames])
@@ -245,30 +249,37 @@ def landmarks_to_vec(
     return vec.clamp(out)
 
 
-def hand_quality(lm_img: np.ndarray, margin: float = 0.02) -> tuple[bool, str]:
+def hand_quality(lm_img: np.ndarray, margin: float = 0.02, orientation: bool = True,
+                 max_off: int = 0) -> tuple[bool, str]:
     """Can this view be marked fairly? Takes the 21 normalised IMAGE landmarks (x, y in 0..1).
 
     A webcam reads fingers badly when the hand is cut off, seen edge-on, or pointing at the camera
     (fingers foreshortened, thumb out of plane). Return (True, "") when the view is usable, else
     (False, one short instruction for the person). Marking should be paused, not failed, when False.
+    orientation=False keeps only the in-picture and size checks, for signs that are made side-on or
+    against the body (GOOD's thumbs-up, ME pointing at the chest) and can never face the camera.
+    max_off is how many of the 21 points may sit outside the picture before it counts as cut off.
     """
     arr = np.asarray(lm_img, dtype=float)
     if arr.shape[0] != 21 or arr.shape[1] < 2 or not np.isfinite(arr).all():
         return False, "No hand detected."
     xy = arr[:, :2]
-    if (xy < margin).any() or (xy > 1.0 - margin).any():
+    if int(((xy < margin) | (xy > 1.0 - margin)).any(axis=1).sum()) > max_off:
         return False, "Show the whole hand inside the picture."
 
     wrist, index_mcp, middle_mcp, little_mcp = xy[0], xy[5], xy[9], xy[17]
+    axis = middle_mcp - wrist
+    length = float(np.linalg.norm(axis))
+    if length < 0.04:
+        return False, "Hold your hand closer to the camera."
+    if not orientation:
+        return True, ""
+
     a, b = index_mcp - wrist, little_mcp - wrist
     cross = abs(a[0] * b[1] - a[1] * b[0])
     if cross / max(np.linalg.norm(a) * np.linalg.norm(b), 1e-9) < 0.45:
         return False, "Turn your palm toward the camera."
 
-    axis = middle_mcp - wrist
-    length = float(np.linalg.norm(axis))
-    if length < 0.04:
-        return False, "Hold your hand closer to the camera."
     # Fingers should point up the picture (image y grows downward).
     if -axis[1] / length < np.cos(np.deg2rad(55.0)):
         return False, "Point your fingers up."

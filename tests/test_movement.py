@@ -63,3 +63,19 @@ def test_sorry_needs_fist_and_circles():
         _, done = s.update(ok, i / 30.0, p, 0.15)
         passed = passed or done
     assert passed and s.result["sorry"] == "passed"
+
+
+def test_dropped_frames_do_not_wipe_the_circle():
+    """Seen live: circling a fist on the chest loses the wrist every few frames; SORRY never finished."""
+    import numpy as np
+
+    from hand.movement import CircleCheck
+
+    c = CircleCheck(cycles=2, duration_s=1.5)
+    t = 0.0
+    for k in range(60):
+        a = 2 * np.pi * 2 * k / 60
+        wrist = None if k % 5 == 4 else (0.5 + 0.1 * np.cos(a), 0.5 + 0.1 * np.sin(a))
+        c.update(t, wrist, 0.15)
+        t += 0.04
+    assert c.done

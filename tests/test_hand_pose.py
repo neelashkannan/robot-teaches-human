@@ -68,7 +68,7 @@ def _calib(open_extra=None, fist_extra=None):
         open_lm = open_extra
     if fist_extra:
         fist_lm = fist_extra
-    return fit_calibration([open_lm], [fist_lm])
+    return fit_calibration([open_lm] * 5, [fist_lm] * 5)
 
 
 @pytest.mark.parametrize("finger", FINGERS)
@@ -218,6 +218,16 @@ def test_default_calibration_thumb_range_is_realistic():
 def test_calibration_keeps_spread_neutral_when_the_open_hand_is_splayed():
     """FIVE fans the fingers out; calibrating on a splayed open hand must not cancel that."""
     splay = {"index": np.deg2rad(8.0), "ring": np.deg2rad(-7.0)}
-    calib = fit_calibration([_make_hand(spread=splay)], [_make_hand(curl={f: 2.0 for f in FINGERS})])
+    calib = fit_calibration([_make_hand(spread=splay)] * 5, [_make_hand(curl={f: 2.0 for f in FINGERS})] * 5)
     v = landmarks_to_vec(_make_hand(spread=splay), "Right", calib)
     assert v[3] > 0.2 and v[7] < -0.2
+
+
+def test_calibration_from_too_few_frames_keeps_the_defaults():
+    """One noisy fist frame must not replace the measured defaults (seen live: 41 open, 1 fist)."""
+    from hand.hand_pose import MIN_CAL_FRAMES, _default_calibration
+
+    open_frames = [_make_hand()] * 10
+    fist_frames = [_make_hand(curl={f: 2.0 for f in FINGERS})] * (MIN_CAL_FRAMES - 1)
+    calib = fit_calibration(open_frames, fist_frames)
+    np.testing.assert_allclose(calib.fist_curl, _default_calibration().fist_curl)

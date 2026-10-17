@@ -134,7 +134,7 @@ def compare(user, target, tol: float = CURL_TOL, spread_tol: float = SPREAD_TOL)
 class Hold:
     """Accumulate seconds of `all_ok` true, tolerating a brief flicker."""
 
-    def __init__(self, seconds: float = 3.0, flicker: float = 0.3):
+    def __init__(self, seconds: float = 3.0, flicker: float = 0.5):
         self.seconds = max(float(seconds), 0.0)
         self.flicker = max(float(flicker), 0.0)
         self._start: float | None = None

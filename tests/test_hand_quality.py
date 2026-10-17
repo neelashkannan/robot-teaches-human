@@ -70,3 +70,28 @@ def test_other_fingers_keep_the_strict_tolerance():
     off = target.copy()
     off[2] = 0.4  # index off by 0.4: still a fail (finger tolerance 0.35, measured on webcam; thumb 0.4)
     assert not compare(off, target).per_finger[1].ok
+
+
+def test_side_on_signs_skip_only_the_orientation_checks():
+    """GOOD's thumbs-up and ME pointing at the chest are made side-on: framing still matters."""
+    edge_on = upright_hand()
+    edge_on[17] = edge_on[5] + (0.001, 0.001)
+    assert hand_quality(edge_on, orientation=False) == (True, "")
+    sideways = upright_hand()
+    sideways[:, [0, 1]] = sideways[:, [1, 0]]  # fingers point across the picture
+    assert hand_quality(sideways, orientation=False) == (True, "")
+    cut = edge_on.copy()
+    cut[8] = (0.5, 0.0)
+    assert "whole hand" in hand_quality(cut, orientation=False)[1]
+    tiny = 0.5 + (upright_hand() - 0.5) * 0.05
+    assert "closer" in hand_quality(tiny, orientation=False)[1]
+
+
+def test_a_few_points_off_the_edge_can_be_allowed():
+    lm = upright_hand()
+    lm[8] = (0.58, -0.01)  # index and middle tips just above the picture
+    lm[12] = (0.50, -0.02)
+    assert not hand_quality(lm)[0]  # strict by default
+    assert hand_quality(lm, max_off=4) == (True, "")
+    lm[[6, 7, 10, 11, 16]] = (0.5, -0.05)  # most of the fingers gone
+    assert "whole hand" in hand_quality(lm, max_off=4)[1]
