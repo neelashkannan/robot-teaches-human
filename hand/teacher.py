@@ -35,7 +35,8 @@ import numpy as np
 from hand.vec import FINGERS, N, clamp
 
 REPO = Path(__file__).resolve().parent.parent
-DEFAULT_MODEL = REPO / "models" / "AH_Right" / "mjcf" / "scene.xml"
+# scene_lab.xml: the hand clamped on a bench with shadows and loose objects that obey gravity.
+DEFAULT_MODEL = REPO / "models" / "AH_Right" / "mjcf" / "scene_lab.xml"
 
 # HandVec finger name -> MJCF finger number (finger{n}_motor{1,2}, tip{n}).
 FINGER_TO_MJCF = {"thumb": 4, "index": 1, "middle": 2, "ring": 3}
@@ -48,8 +49,8 @@ SPREAD_RAD = 0.6
 CTRL_LIMIT = 1.5707963267948966
 
 # Free camera framing the whole hand (fingers point up the image, palm facing the viewer's side).
-CAM_LOOKAT = (0.05, -0.01, 0.085)
-CAM_DISTANCE = 0.38
+CAM_LOOKAT = (0.07, 0.0, -0.05)
+CAM_DISTANCE = 0.64
 CAM_AZIMUTH = 150.0
 CAM_ELEVATION = -15.0
 
@@ -79,6 +80,13 @@ class Teacher:
         self.cam.distance = CAM_DISTANCE
         self.cam.azimuth = CAM_AZIMUTH
         self.cam.elevation = CAM_ELEVATION
+        # Loose scene objects (free joints, if the scene has any): remember their start state so
+        # drop_objects() can put them back in the air and let gravity do the rest.
+        self._objs = [
+            (int(self.model.jnt_qposadr[j]), int(self.model.jnt_dofadr[j]), self.data.qpos[self.model.jnt_qposadr[j]:self.model.jnt_qposadr[j] + 7].copy())
+            for j in range(self.model.njnt)
+            if self.model.jnt_type[j] == mujoco.mjtJoint.mjJNT_FREE
+        ]
         self._renderer = None
         self._size = None
         self.set_pose(np.zeros(N))
@@ -95,6 +103,13 @@ class Teacher:
         ctrl = vec_to_ctrl(vec)
         for k, a in enumerate(self._act):
             self.data.ctrl[a] = ctrl[k]
+
+    def drop_objects(self) -> None:
+        """Put the loose objects back at their start height; they fall and settle as steps run."""
+        for qadr, dadr, q0 in self._objs:
+            self.data.qpos[qadr:qadr + 7] = q0
+            self.data.qvel[dadr:dadr + 6] = 0.0
+        mujoco.mj_forward(self.model, self.data)
 
     def step(self, n: int = 200) -> None:
         for _ in range(n):
