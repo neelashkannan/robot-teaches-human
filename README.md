@@ -1,5 +1,10 @@
 # Robot Teaches Human
 
+Pitch - Video Presentation 
+
+https://youtu.be/63d2HDdggKI
+
+
 In robotics the human is usually the teacher: robots learn from imitation, teleoperation and motion
 capture. This project runs that pipeline backwards. A simulated robot shows you a pose, watches you
 copy it through a webcam, and tells you joint by joint what to fix.
