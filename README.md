@@ -1,5 +1,7 @@
-# Robot Teaches Human
+<img width="1280" height="640" alt="WhatsApp Image 2026-10-17 at 3 38 02 PM" src="https://github.com/user-attachments/assets/6331bee2-1126-4751-988a-9a4d7722a436" />
 
+
+# Robot Teaches Human
 Pitch - Video Presentation 
 
 https://youtu.be/63d2HDdggKI
