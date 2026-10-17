@@ -1,0 +1,7 @@
+mediapipe==1.1.1
+mujoco==3.16.0
+numpy==2.5.4
+opencv-contrib-python==5.0.0.93
+opencv-python==5.0.0.93
+pytest==9.1.1
+pyyaml==6.0.3

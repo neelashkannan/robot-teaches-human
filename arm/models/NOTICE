@@ -1,0 +1,2 @@
+Models in AH_Right/ are copied unmodified from https://github.com/pollen-robotics/AmazingHand (Demo/AHSimulation), Apache-2.0, (c) Pollen Robotics.
+models/AH_Right/mjcf/scene_lab.xml is added by this team (workbench scene, not from Pollen).

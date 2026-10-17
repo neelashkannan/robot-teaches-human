@@ -1,0 +1,330 @@
+{
+  "statements": [
+    {
+      "id": "im-sorry",
+      "english": "I'm sorry.",
+      "gloss": "ME SORRY",
+      "signs": [
+        "me",
+        "sorry"
+      ],
+      "notes": "Built from two sourced signs: ME (british-sign.co.uk: 'Index finger points at signer', also covers I) and SORRY (signs.json: 'Closed hand makes a circular motion on chest'). The order ME SORRY is our gloss; it has not been checked by a fluent BSL signer, and BSL also allows SORRY ME. The apologetic facial expression carries meaning and is not checked."
+    }
+  ],
+  "signs": [
+    {
+      "id": "me",
+      "gloss": "ME (I)",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/me",
+      "status": "approximated",
+      "instruction": "Point your index finger at your chest from the side.",
+      "target": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Index finger points at signer.' (the same sign covers I). Same handshape as ONE; the meaning is the pointing direction, which this hand (no wrist) cannot show and the checker does not judge, so approximated: handshape only. Kept out of signs.json for that reason (it would duplicate ONE there); it is only taught inside a statement. The instruction says 'from the side' because a finger pointing straight back at the signer points away from the webcam and MediaPipe reads it as curled (seen live, 17 Oct: index read 98-123 degrees); side-on it reads straight. Thumb folded assumed (source silent).",
+      "view": "any"
+    },
+    {
+      "id": "you",
+      "gloss": "YOU",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/you",
+      "status": "approximated",
+      "instruction": "Point your index finger at the other person, side-on.",
+      "target": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Point with index finger at the person being referred to.' Same handshape as ONE and ME; the pointing direction is the meaning and is not checked. 'Side-on' because a finger pointing at the webcam is foreshortened and reads as curled (same problem as ME). Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "my",
+      "gloss": "MY",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/my",
+      "status": "approximated",
+      "instruction": "Hold a closed fist against your chest.",
+      "target": [
+        0.8,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Closed hand held to chest.' Also covers mine. Same handshape as SORRY (fist, thumb folded assumed); the chest location is not checked. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "good",
+      "gloss": "GOOD",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/good",
+      "status": "approximated",
+      "instruction": "Thumbs up: closed fist, thumb up, small push forward.",
+      "target": [
+        0.0,
+        0.3,
+        1.0,
+        0.0,
+        1.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Make short forward movement using closed hand with thumb up (1 or 2 hands).' Also covers great (and hi/hello, which the phrasebook sends to HELLO instead). Thumb spread 0.3 is my estimate for a thumb held up beside the fist. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "thank-you",
+      "gloss": "THANK YOU",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/thank-you",
+      "status": "approximated",
+      "instruction": "Flat hand, fingertips on chin, then move it down and away.",
+      "target": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Flat hand starts with fingertips on chin. Hand moves down and away from signer.' Also covers thanks and please. Flat hand = all four robot fingers straight, thumb alongside; little finger not modelled. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "hello",
+      "gloss": "HELLO",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/hello",
+      "status": "approximated",
+      "instruction": "Open flat hand, wave it near the side of your head.",
+      "target": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Wave hand near side of head.' Also covers hi and goodbye. Flat open hand assumed (source silent on handshape). Approximated: only the handshape is checked; location and movement are not."
+    },
+    {
+      "id": "want",
+      "gloss": "WANT",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/want",
+      "status": "approximated",
+      "instruction": "Flat hand moves down your chest, then twists out.",
+      "target": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Flat dominant hand moves down chest then twists out.' Also covers need. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "morning",
+      "gloss": "MORNING",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/morning",
+      "status": "approximated",
+      "instruction": "Bent flat hand: fingertips tap one side of chest, then other.",
+      "target": [
+        0.0,
+        0.0,
+        0.3,
+        0.0,
+        0.3,
+        0.0,
+        0.3,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Dominant hand bent. Fingertips tap far side of chest then near side of chest.' A bent hand bends at the knuckles, which the curl measure (middle and end joints) reads as nearly straight, so the target is a partial curl (0.3): with the 0.35 tolerance that accepts a flat to clearly bent hand but not a fist. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "afternoon",
+      "gloss": "AFTERNOON",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/afternoon",
+      "status": "approximated",
+      "instruction": "Index and middle fingers out together, tips touch chin.",
+      "target": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: \"Tips of index and middle finger ('N' shape) touch chin then wrist twists so fingertips are facing forwards.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "name",
+      "gloss": "NAME",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/name",
+      "status": "approximated",
+      "instruction": "Index and middle fingers out together, tips touch forehead.",
+      "target": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: \"Tips of index and middle fingers ('N' shape) touch forehead. Hand twists forwards at wrist until fingers are facing forwards in front of face.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "deaf",
+      "gloss": "DEAF",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/deaf",
+      "status": "approximated",
+      "instruction": "Index and middle fingers out together, touch your ear.",
+      "target": [
+        0.8,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        1.0,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: \"Index and middle fingers extended ('N' shape) touch ear.\" 'N' shape = index and middle fingers out, ring curled, thumb folded (assumed); same handshape as TWO. Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    },
+    {
+      "id": "drink",
+      "gloss": "DRINK",
+      "source_url": "https://www.british-sign.co.uk/bsl-dictionary/drink",
+      "status": "approximated",
+      "instruction": "Curve your hand round an imagined glass, tip it to your mouth.",
+      "target": [
+        0.3,
+        0.5,
+        0.5,
+        0.0,
+        0.5,
+        0.0,
+        0.5,
+        0.0
+      ],
+      "hold_seconds": 3.0,
+      "movement": null,
+      "notes": "Source: 'Dominant hand mimes drinking out of a glass.' Also covers glass, tumbler, beer. Handshape is a C around an imagined glass: fingers half curled, thumb out opposite them (my estimate, source silent). Approximated: only the handshape is checked; location and movement are not.",
+      "view": "any"
+    }
+  ],
+  "words": {
+    "i": "me",
+    "me": "me",
+    "you": "you",
+    "my": "my",
+    "mine": "my",
+    "good": "good",
+    "great": "good",
+    "sorry": "sorry",
+    "thank you": "thank-you",
+    "thank": "thank-you",
+    "thanks": "thank-you",
+    "please": "thank-you",
+    "hello": "hello",
+    "hi": "hello",
+    "goodbye": "hello",
+    "want": "want",
+    "need": "want",
+    "one": "one",
+    "1": "one",
+    "two": "two",
+    "2": "two",
+    "three": "three",
+    "3": "three",
+    "five": "five",
+    "5": "five",
+    "seven": "seven",
+    "7": "seven",
+    "morning": "morning",
+    "afternoon": "afternoon",
+    "name": "name",
+    "deaf": "deaf",
+    "drink": "drink",
+    "glass": "drink",
+    "tumbler": "drink",
+    "beer": "drink"
+  },
+  "skip_words": [
+    "am",
+    "is",
+    "are",
+    "be",
+    "a",
+    "an",
+    "the",
+    "to",
+    "do",
+    "and"
+  ],
+  "phrasebook_notes": "words: English word or two-word phrase -> sign id, only where the sign's source lists that word (its own entry or 'also covers'). skip_words have no sign of their own in BSL and are dropped. Signs follow the typed English order, not BSL grammar. cannot_sign: words we looked up whose BSL sign this one four-fingered hand cannot make (sources.md); they are skipped with that reason instead of a plain 'no sign yet'.",
+  "cannot_sign": {
+    "night": "needs two hands",
+    "welcome": "needs two hands",
+    "father": "needs two hands",
+    "mother": "needs two hands",
+    "car": "needs two hands",
+    "love": "needs two hands",
+    "eat": "this hand cannot form it",
+    "tea": "this hand cannot form it",
+    "money": "this hand cannot form it",
+    "sleep": "this hand cannot form it",
+    "bird": "this hand cannot form it"
+  }
+}
