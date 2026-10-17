@@ -2,9 +2,9 @@
 
 
 # Robot Teaches Human
-Pitch - Video Presentation 
 
-https://youtu.be/63d2HDdggKI
+### Pitch: https://youtu.be/63d2HDdggKI
+
 
 
 In robotics the human is usually the teacher: robots learn from imitation, teleoperation and motion
