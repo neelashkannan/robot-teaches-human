@@ -1,0 +1,14 @@
+# Anthropic-format front for Nebius Token Factory (OpenAI-compatible). Key comes from the environment.
+model_list:
+  - model_name: kimi-code
+    litellm_params:
+      model: openai/moonshotai/Kimi-K2.7-Code
+      api_base: os.environ/NEBIUS_BASE_URL
+      api_key: os.environ/NEBIUS_API_KEY
+  - model_name: glm
+    litellm_params:
+      model: openai/zai-org/GLM-5.3
+      api_base: os.environ/NEBIUS_BASE_URL
+      api_key: os.environ/NEBIUS_API_KEY
+litellm_settings:
+  drop_params: true
