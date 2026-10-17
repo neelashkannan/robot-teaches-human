@@ -1,0 +1,24 @@
+{
+  "name": "rth-presentation",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Robot Teaches Human: 2-minute pitch video (Remotion)",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render Pitch out/pitch.mp4",
+    "still": "remotion still Pitch out/still.png",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.536",
+    "@remotion/google-fonts": "4.0.536",
+    "@remotion/transitions": "4.0.536",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.536"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.2",
+    "typescript": "5.9.3"
+  }
+}

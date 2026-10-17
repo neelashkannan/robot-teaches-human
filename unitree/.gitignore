@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.env
+assets/
+data/
+logs/
+reports/*.png
+*.mp4
+.DS_Store
+

@@ -1,0 +1,172 @@
+{
+  "_doc": "Voiceover, one entry per clip. 'at' is the earliest start in seconds from the scene start; lines in a scene never overlap (each waits for the previous one plus a short gap). Regenerate with scripts/voiceover.py after editing.",
+  "voice": "cedar",
+  "scenes": {
+    "Flip": [
+      {
+        "id": "flip1",
+        "at": 0.4,
+        "text": "For years, robots have learned by copying us."
+      },
+      {
+        "id": "flip2",
+        "at": 5.6,
+        "text": "So we flipped it."
+      },
+      {
+        "id": "flip3",
+        "at": 7.2,
+        "text": "Now the robot teaches, and you learn."
+      }
+    ],
+    "Title": [
+      {
+        "id": "title1",
+        "at": 0.6,
+        "text": "This is Robot Teaches Human."
+      }
+    ],
+    "Why": [
+      {
+        "id": "why1",
+        "at": 0.5,
+        "text": "Why a robot? It knows every joint angle exactly. It never gets tired, and it never judges you."
+      }
+    ],
+    "Virtual": [
+      {
+        "id": "virt1",
+        "at": 0.3,
+        "text": "One problem: we couldn't get access to a real robot here."
+      },
+      {
+        "id": "virt2",
+        "at": 0.0,
+        "text": "So we built a virtual dojo, with real physics."
+      }
+    ],
+    "ArmDemo": [
+      {
+        "id": "arm1",
+        "at": 0.5,
+        "text": "We started small: a robot hand, teaching sign language."
+      },
+      {
+        "id": "arm2",
+        "at": 0.0,
+        "text": "It shows a sign, you copy it, and every finger gets checked."
+      },
+      {
+        "id": "arm3",
+        "at": 9.4,
+        "text": "And it's honest. When four fingers can't make the real sign, it tells you."
+      }
+    ],
+    "Hype": [
+      {
+        "id": "hype1",
+        "at": 0.15,
+        "text": "That was one hand."
+      },
+      {
+        "id": "hype2",
+        "at": 0.0,
+        "text": "Now... the whole body."
+      }
+    ],
+    "UnitreeDemo": [
+      {
+        "id": "uni1",
+        "at": 0.3,
+        "text": "This is a real run at our table: a Unitree G1, teaching kung fu."
+      },
+      {
+        "id": "uni4",
+        "at": 7.0,
+        "text": "See the red? It tells you exactly which limb to fix."
+      },
+      {
+        "id": "uni5",
+        "at": 13.0,
+        "text": "Every limb green, hold for three seconds, and you've passed."
+      },
+      {
+        "id": "uni6",
+        "at": 18.2,
+        "text": "Then you get your scorecard."
+      }
+    ],
+    "Trick": [
+      {
+        "id": "tr1",
+        "at": 0.3,
+        "text": "But the robot is shorter than you. So is that fair?"
+      },
+      {
+        "id": "tr2",
+        "at": 0.0,
+        "text": "We turn both bodies into the same eight arrows."
+      },
+      {
+        "id": "tr3",
+        "at": 0.0,
+        "text": "We ignore their length, and only compare which way they point."
+      },
+      {
+        "id": "tr4",
+        "at": 0.0,
+        "text": "The biggest miss becomes one simple tip."
+      }
+    ],
+    "Stack": [
+      {
+        "id": "st1",
+        "at": 0.5,
+        "text": "Under the hood: MuJoCo, MediaPipe, our own stance recogniser, and Nebius for the AI sensei."
+      }
+    ],
+    "Limits": [
+      {
+        "id": "lim1",
+        "at": 0.4,
+        "text": "To be honest: the robots are virtual for now, and the stances are set by hand."
+      }
+    ],
+    "Next": [
+      {
+        "id": "next1",
+        "at": 0.4,
+        "text": "Now picture a real robot."
+      },
+      {
+        "id": "next2",
+        "at": 0.0,
+        "text": "You get it wrong, and it walks over, and gently moves your arm into place."
+      },
+      {
+        "id": "next3",
+        "at": 0.0,
+        "text": "Just like a real sensei."
+      }
+    ],
+    "Close": [
+      {
+        "id": "cl1",
+        "at": 0.3,
+        "text": "Robots spent years learning from us."
+      },
+      {
+        "id": "cl2",
+        "at": 0.0,
+        "text": "Now, they can teach us back."
+      },
+      {
+        "id": "cl3",
+        "at": 0.0,
+        "text": "Come and try it."
+      }
+    ]
+  },
+  "model": "openai/gpt-audio",
+  "direction": "Talk like a real person telling a friend about something you built today and are proud of: warm, relaxed, conversational, with natural pauses and a little smile in your voice. Not an announcer, not an advert."
+}

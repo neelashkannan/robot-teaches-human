@@ -1,0 +1,109 @@
+# Booth settings. Every field has a default in src/rth/config.py; override here.
+stances_path: config/stances.yaml
+
+camera:
+  index: 0
+  width: 1280
+  height: 720
+  mirror_display: true
+  permission_wait_s: 30.0   # keep retrying while macOS shows the camera permission prompt
+  fps: 30
+
+scoring:
+  tolerance_deg: 30.0     # tune on site: lower = stricter (25 was too strict with a live webcam, 17 Oct)
+  min_visibility: 0.5
+  min_limbs_seen: 6
+  mirror_view: true
+  smoothing_alpha: 0.35   # lower = steadier limbs, slower to react
+
+session:
+  stances_per_session: 5
+  default_hold_s: 3.0
+  default_transition_s: 2.0
+  give_up_s: 20.0
+  hold_grace_s: 0.3
+  start_stance: ready
+  auto_start_s: 2.0       # 0 = start only from a key or a typed request
+  absent_reset_s: 12.0
+  result_pause_s: 1.5
+  scorecard_s: 15.0
+  arrive_timeout_s: 4.0   # a physics robot may take longer than the transition time
+
+robot:
+  mode: kinematic        # physics | kinematic (kinematic = fallback, joint angles set directly)
+  model_path: assets/mujoco_menagerie/unitree_g1/scene.xml
+  clips_dir: assets/lafan1/g1
+  render_width: 640
+  render_height: 720
+  camera_distance: 2.5
+  camera_elevation_deg: -5.0
+  camera_lookat_z: 0.78
+  camera_azimuth_deg: 200.0
+  render_shadows: false
+  render_samples: 4
+
+sim:
+  scene: dojo
+  realtime_factor: 1.0
+  max_substeps_per_frame: 40
+  harness: true            # overhead safety rope; catches a fall, then the robot re-spawns
+  harness_slack_m: 0.15
+  fall_pelvis_z: 0.55
+  fall_tilt_deg: 40.0
+  recover_wait_s: 1.5
+  assist_stances: [bow]    # held with a partial rope assist (status assist=true)
+  assist_slack_m: 0.05
+  stepping: false          # true = real steps (not yet reliable); false = feet stay planted
+  max_stance_width_m: 0.55   # G1 legs can't step statically into wider stances
+  step_height_m: 0.09
+  step_swing_s: 1.0
+  weight_shift_s: 0.7
+  viewer_push_n: 120.0     # rth sim: P key (B = viewer_big_push_n), applied to the torso for viewer_push_s
+  viewer_big_push_n: 320.0
+  viewer_push_s: 0.15
+  viewer_tour_s: 6.0       # rth sim: N key, seconds per stance
+
+vision:
+  # full: ~22 ms/frame at 1280x720 on an M1 CPU. lite (~15 ms) if the loop drops below 30 fps;
+  # heavy (~90 ms) is too slow for live use.
+  model_path: assets/models/pose_landmarker_full.task
+  min_detection_confidence: 0.5
+  min_presence_confidence: 0.5
+  min_tracking_confidence: 0.5
+
+recognizer:
+  recordings_dir: data/recordings
+  model_path: data/recognizer.npz
+  report_dir: reports
+  k: 10
+  smoothing_alpha: 0.2
+  min_confidence: 0.6
+  enabled: true
+  top_n_by_max: 30
+  forward_weight: 0.5
+  reject_quantile: 0.95
+  reject_margin: 1.1
+  max_frames_per_recording: 300
+  record_min_visibility: 0.6
+
+nebius:
+  base_url: https://api.tokenfactory.nebius.com/v1/
+  api_key_env: NEBIUS_API_KEY   # put the key in .env, never in this file
+  # All three verified live with `uv run rth check-nebius --vision` (2026-10-17).
+  # Alternatives in the catalog: nvidia/NVIDIA-Nemotron-3-Nano-30B-A3B (sensei),
+  # Qwen/Qwen3.8-27B (vision). `uv run rth check-nebius --list` prints every ID.
+  embedding_model: Qwen/Qwen3-Embedding-8B
+  # 235B MoE: 0.8-1.7 s on the real prompt (17 Oct); the 30B was overloaded (4-15 s timeouts).
+  sensei_model: Qwen/Qwen3-235B-A22B-Instruct-2507
+  vision_model: openbmb/MiniCPM-V-4_5
+  timeout_s: 4.0
+  enable_picker: true
+  enable_sensei: true
+  enable_vision_tip: false
+  structured_output: json_schema   # json_schema | json_object | none; falls back by itself if refused
+  sensei_max_tokens: 160
+  vision_max_px: 512
+
+voice:
+  enabled: true
+  rate: 185
