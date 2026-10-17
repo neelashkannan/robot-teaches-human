@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from hand.compare import compare
-from hand.signs import Session, load_signs
+from hand.signs import REPO, Session, load_signs
 
 
 def entry(id, status, target=(0.0,) * 8, movement=None):
@@ -14,10 +14,13 @@ def entry(id, status, target=(0.0,) * 8, movement=None):
 
 
 def test_real_file_loads_only_shown_statuses():
+    raw = json.loads((REPO / "data" / "signs.json").read_text())
+    shown = [e["id"] for e in raw if e["status"] in ("exact", "approximated")]
+    hidden = [e["id"] for e in raw if e["status"] not in ("exact", "approximated")]
     signs = load_signs()
     ids = [s.id for s in signs]
-    assert len(signs) == 6
-    assert "four" not in ids and "nine" not in ids
+    assert shown and ids == shown
+    assert not set(ids) & set(hidden)
     assert {s.status for s in signs} <= {"exact", "approximated"}
     for s in signs:
         assert s.target.shape == (8,) and np.all(s.target >= -1) and np.all(s.target <= 1)
@@ -100,7 +103,7 @@ def test_finish_back_repeat_restart():
 
 
 def test_force_pass_clicks_through_every_sign():
-    from hand.signs import Session, load_signs
+    from hand.signs import REPO, Session, load_signs
     s = Session(load_signs())
     n = len(s.signs)
     for _ in range(n):

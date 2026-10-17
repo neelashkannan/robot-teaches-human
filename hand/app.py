@@ -14,13 +14,14 @@ Run: .venv/bin/python -m hand.app
 from __future__ import annotations
 
 import sys
+import textwrap
 import time
 
 import cv2
 import numpy as np
 
 from hand.compare import compare
-from hand.hand_pose import fit_calibration, landmarks_to_vec
+from hand.hand_pose import fit_calibration, hand_quality, landmarks_to_vec
 from hand.signs import CAPTION, Session, load_signs
 from hand.teacher import Teacher
 from hand.vec import FINGERS
@@ -88,6 +89,16 @@ class PoseView:
 def label(img, text, x=10, y=28, scale=0.7, color=WHITE):
     cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, (0, 0, 0), 4)
     cv2.putText(img, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, scale, color, 2)
+
+
+def big_text(img, text, color=YELLOW) -> None:
+    """Large centred message on a panel, wrapped to fit."""
+    h, w = img.shape[:2]
+    lines = textwrap.wrap(text, 24)
+    for k, line in enumerate(lines):
+        (tw, th), _ = cv2.getTextSize(line, cv2.FONT_HERSHEY_SIMPLEX, 1.1, 3)
+        y = h // 2 + (k - (len(lines) - 1) / 2) * (th + 16)
+        label(img, line, max(int((w - tw) / 2), 8), int(y), 1.1, color)
 
 
 def draw_landmarks(img, lm) -> None:
@@ -182,6 +193,9 @@ def main() -> int:
         now = time.time()
         lm, hand = tracker.process(frame, int((now - t0) * 1000))
         vec = landmarks_to_vec(tracker.world, hand, calib) if lm is not None else None
+        # An unreliable view (cut off, edge-on, pointing at the camera) pauses marking: no
+        # red/green, no hold progress, nothing counted against the learner.
+        usable, reason = hand_quality(lm) if lm is not None else (False, "")
 
         step_text = None
         if cal_start is not None:
@@ -189,7 +203,7 @@ def main() -> int:
             for name, dur, bucket in CAL_STEPS:
                 if el < dur:
                     step_text = f"{name}  ({dur - el:.0f}s)"
-                    if bucket and tracker.world is not None:
+                    if bucket and tracker.world is not None and usable:
                         cal_frames[bucket].append(tracker.world.copy())
                     break
                 el -= dur
@@ -205,11 +219,11 @@ def main() -> int:
             progress, result = 0.0, None
         else:
             sign = session.sign
-            result = compare(vec, sign.target) if vec is not None else None
+            result = compare(vec, sign.target) if vec is not None and usable else None
             if step_text is None:
                 was = sign.gloss
                 wrist, size = None, None
-                if lm is not None:
+                if lm is not None and usable:
                     aspect = frame.shape[1] / frame.shape[0]  # image space with square units
                     wrist = (lm[0][0] * aspect, lm[0][1])
                     size = float(np.hypot((lm[9][0] - lm[0][0]) * aspect, lm[9][1] - lm[0][1]))
@@ -238,6 +252,8 @@ def main() -> int:
                 label(left, step_text, 10, 28, 0.8, YELLOW)
             elif vec is None:
                 label(left, "No hand detected", 10, 28, 0.8, RED)
+            elif not usable:
+                big_text(left, reason)
             else:
                 label(left, f"{hand} hand   {'calibrated' if calib else 'default calibration'}", 10, 28, 0.55)
             label(left, f"{fps:.0f} fps", 10, H - 12, 0.6)
@@ -265,6 +281,8 @@ def main() -> int:
                 msg, msg_color = "Calibrating: keep your hand in view", YELLOW
             elif now < banner_until:
                 msg, msg_color = banner, GREEN
+            elif lm is not None and not usable:
+                msg, msg_color = f"Marking paused: {reason}", YELLOW
             elif result is None:
                 msg, msg_color = "Show your hand to the camera", RED
             elif result.all_ok and session.move is not None and not session.move.done:
