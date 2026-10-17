@@ -2,7 +2,8 @@
 
 Keys: q quit, n skip to next sign, b back, r repeat the sign (restart all on the scorecard),
       c calibrate (10 s: 2 s get ready, 3 s open hand, 2 s get ready, 3 s fist),
-      m toggle the mirror hand (a second sim hand copying you).
+      m toggle the mirror hand (a second sim hand copying you),
+      p drop the loose objects on the bench again.
 Frames stay in memory: nothing is saved, encoded or sent anywhere.
 Run: .venv/bin/python -m hand.app
 """
@@ -38,24 +39,39 @@ PASSED_BANNER_S = 1.5
 
 
 class PoseView:
-    """A Teacher that re-renders only while its pose is changing."""
+    """A Teacher stepped in real time; re-renders only while something is moving."""
+
+    MAX_STEPS = 40  # cap per frame so a slow frame cannot snowball
 
     def __init__(self):
         self.teacher = Teacher()
         self.vec = None
-        self.dirty = 0
         self.img = None
+        self.acc = 0.0
+        self.last = time.time()
+        self.settle = 0  # extra frames to render after motion stops
+
+    def drop(self) -> None:
+        self.teacher.drop_objects()
+        self.settle = 10
 
     def show(self, vec) -> np.ndarray:
         vec = np.asarray(vec, dtype=float)
         if self.vec is None or np.abs(vec - self.vec).max() > 0.01:
             self.teacher.set_pose(vec)
             self.vec = vec.copy()
-            self.dirty = 12  # frames for the sim to settle
-        if self.dirty > 0 or self.img is None:
-            self.teacher.step(30)
+            self.settle = 10
+        now = time.time()
+        self.acc += (now - self.last) / self.teacher.model.opt.timestep
+        self.last = now
+        n = min(int(self.acc), self.MAX_STEPS)
+        self.acc = 0.0 if n == self.MAX_STEPS else self.acc - n
+        self.teacher.step(n)
+        if np.abs(self.teacher.data.qvel).max() > 5e-3:
+            self.settle = 10
+        if self.settle > 0 or self.img is None:
             self.img = cv2.cvtColor(self.teacher.render(H, H), cv2.COLOR_RGB2BGR)
-            self.dirty -= 1
+            self.settle -= 1
         return self.img
 
 
@@ -209,7 +225,7 @@ def main() -> int:
                 (f"Status: {sign.status_label}   (handshape source: {sign.source_host})",
                  GREEN if sign.status == "exact" else ORANGE, 0.55),
                 (msg, msg_color, 0.7),
-                (CAPTION + "    n skip  b back  r repeat  c calibrate  m mirror  q quit", GREY, 0.5),
+                (CAPTION + "    n skip  b back  r repeat  c calibrate  m mirror  p drop  q quit", GREY, 0.5),
             ])
             cv2.imshow("Robot Teaches Human", np.vstack([row, info]))
 
@@ -226,6 +242,10 @@ def main() -> int:
             cal_frames = {"open": [], "fist": []}
         elif key == ord("m"):
             mirror = PoseView() if mirror is None else None
+        elif key == ord("p"):
+            teacher.drop()
+            if mirror is not None:
+                mirror.drop()
         elif key == ord("n") and not session.finished:
             session.skip()
         elif key == ord("b"):
