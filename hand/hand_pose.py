@@ -42,7 +42,7 @@ class Calibration:
 
     open_curl: np.ndarray  # per-finger raw summed curl angle for open hand
     fist_curl: np.ndarray  # per-finger raw summed curl angle for a fist
-    neutral_spread: np.ndarray  # per-finger raw spread angle for open hand
+    neutral_spread: np.ndarray  # per-finger raw spread angle that reads as spread 0 (not fitted)
     max_spread: np.ndarray  # per-finger raw angle that maps to spread == 1
 
 
@@ -122,83 +122,26 @@ def _raw_spread_all(lm: np.ndarray) -> np.ndarray:
     return np.array([_raw_spread(lm, f) for f in vec.FINGERS], dtype=float)
 
 
-def _canonical_open_hand() -> np.ndarray:
-    """Generic open right hand used to seed the default calibration."""
-    lm = np.zeros((21, 3), dtype=float)
-    lm[0] = (0.0, 0.0, 0.0)
-    # thumb (positive y is the thumb side of the hand)
-    lm[1] = (0.4, 0.22, 0.0)
-    lm[2] = (0.65, 0.35, 0.0)
-    lm[3] = (0.9, 0.48, 0.0)
-    lm[4] = (1.15, 0.61, 0.0)
-    # index
-    lm[5] = (1.0, 0.0, 0.0)
-    lm[6] = (2.0, 0.0, 0.0)
-    lm[7] = (3.0, 0.0, 0.0)
-    lm[8] = (4.0, 0.0, 0.0)
-    # middle
-    lm[9] = (1.0, 0.12, 0.0)
-    lm[10] = (2.0, 0.12, 0.0)
-    lm[11] = (3.0, 0.12, 0.0)
-    lm[12] = (4.0, 0.12, 0.0)
-    # ring
-    lm[13] = (0.95, 0.24, 0.0)
-    lm[14] = (1.9, 0.24, 0.0)
-    lm[15] = (2.85, 0.24, 0.0)
-    lm[16] = (3.8, 0.24, 0.0)
-    # little (ignored by this module, but included for completeness)
-    lm[17] = (0.85, 0.38, 0.0)
-    lm[18] = (1.7, 0.38, 0.0)
-    lm[19] = (2.55, 0.38, 0.0)
-    lm[20] = (3.4, 0.38, 0.0)
-    return lm
-
-
-def _canonical_fist_hand() -> np.ndarray:
-    """Generic fist used to seed the default calibration."""
-    lm = np.zeros((21, 3), dtype=float)
-    lm[0] = (0.0, 0.0, 0.0)
-    # thumb folded across palm (positive y is the thumb side)
-    lm[1] = (0.35, 0.15, 0.0)
-    lm[2] = (0.6, 0.45, 0.0)
-    lm[3] = (0.75, 0.75, 0.0)
-    lm[4] = (0.85, 1.05, 0.0)
-    # index curled (~60 deg between segments -> total ~120 deg)
-    lm[5] = (1.0, 0.0, 0.0)
-    lm[6] = (2.0, 0.0, 0.0)
-    lm[7] = (2.5, 0.87, 0.0)
-    lm[8] = (2.0, 1.73, 0.0)
-    # middle curled
-    lm[9] = (1.0, 0.12, 0.0)
-    lm[10] = (2.0, 0.12, 0.0)
-    lm[11] = (2.5, 0.99, 0.0)
-    lm[12] = (2.0, 1.85, 0.0)
-    # ring curled
-    lm[13] = (0.95, 0.24, 0.0)
-    lm[14] = (1.9, 0.24, 0.0)
-    lm[15] = (2.4, 1.11, 0.0)
-    lm[16] = (1.9, 1.97, 0.0)
-    # little
-    lm[17] = (0.85, 0.38, 0.0)
-    lm[18] = (1.7, 0.38, 0.0)
-    lm[19] = (2.2, 1.25, 0.0)
-    lm[20] = (1.7, 2.11, 0.0)
-    return lm
+# Defaults measured on a laptop webcam with MediaPipe world landmarks (app --debug readout, 17 Oct).
+# The depth estimate is noisy, so a straight finger never reads 0: straight fingers read 26-65 degrees
+# of bend and curled ones 93-143 (the ring finger cannot curl fully while the middle finger is up, as
+# in TWO); a relaxed thumb reads 12-28 and a folded one 45-84. Open and fist sit so that the gap
+# between those groups falls in the middle of the range.
+DEFAULT_OPEN_CURL_DEG = (15.0, 40.0, 40.0, 40.0)
+DEFAULT_FIST_CURL_DEG = (75.0, 120.0, 120.0, 120.0)
+# Spread 0 is a finger parallel to the palm axis (wrist -> middle knuckle); a relaxed thumb sits about
+# 20 degrees off that axis.
+DEFAULT_NEUTRAL_SPREAD_DEG = (20.0, 0.0, 0.0, 0.0)
+DEFAULT_MAX_SPREAD_DEG = (40.0, 25.0, 25.0, 25.0)
 
 
 def _default_calibration() -> Calibration:
     """Fixed defaults used when no calibration is supplied."""
-    open_lm = _canonical_open_hand()
-    fist_lm = _canonical_fist_hand()
-    open_curl = _raw_curl_all(open_lm)
-    fist_curl = _raw_curl_all(fist_lm)
-    neutral_spread = _raw_spread_all(open_lm)
-    max_spread = np.deg2rad(np.array([40.0, 25.0, 25.0, 25.0]))
     return Calibration(
-        open_curl=open_curl,
-        fist_curl=fist_curl,
-        neutral_spread=neutral_spread,
-        max_spread=max_spread,
+        open_curl=np.deg2rad(np.array(DEFAULT_OPEN_CURL_DEG)),
+        fist_curl=np.deg2rad(np.array(DEFAULT_FIST_CURL_DEG)),
+        neutral_spread=np.deg2rad(np.array(DEFAULT_NEUTRAL_SPREAD_DEG)),
+        max_spread=np.deg2rad(np.array(DEFAULT_MAX_SPREAD_DEG)),
     )
 
 
@@ -217,27 +160,26 @@ def fit_calibration(
 
     open_curls = np.array([_raw_curl_all(f) for f in open_frames])
     fist_curls = np.array([_raw_curl_all(f) for f in fist_frames])
-    neutral_spreads = np.array([_raw_spread_all(f) for f in open_frames])
 
     open_curl = np.nanmedian(open_curls, axis=0)
     fist_curl = np.nanmedian(fist_curls, axis=0)
-    neutral_spread = np.nanmedian(neutral_spreads, axis=0)
 
     default = _default_calibration()
-    max_spread = default.max_spread.copy()
 
     # If the user did not actually open/close, keep the default range.
     for i in range(len(vec.FINGERS)):
         if not (fist_curl[i] > open_curl[i] + 0.05):
             open_curl[i] = default.open_curl[i]
             fist_curl[i] = default.fist_curl[i]
-            neutral_spread[i] = default.neutral_spread[i]
 
+    # Spread keeps the default neutral (fingers parallel to the palm axis). An open hand held up for
+    # calibration is splayed, and the sign table counts that splay as spread (FIVE fans the index
+    # and ring out), so taking the neutral from it would cancel exactly what FIVE asks for.
     return Calibration(
         open_curl=open_curl,
         fist_curl=fist_curl,
-        neutral_spread=neutral_spread,
-        max_spread=max_spread,
+        neutral_spread=default.neutral_spread.copy(),
+        max_spread=default.max_spread.copy(),
     )
 
 

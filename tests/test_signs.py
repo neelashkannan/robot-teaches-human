@@ -163,3 +163,129 @@ def test_toggle_mode_and_practice_still_advances(tmp_path):
     assert s.result[cur.id] == "passed" and s.sign is not cur  # practice advances
     s.toggle_mode()
     assert s.browse
+
+
+def ok_result():
+    return compare(np.zeros(8), np.zeros(8))
+
+
+def test_real_statement_loads_me_then_sorry():
+    from hand.signs import load_statement
+
+    st = load_statement()
+    assert st.english == "I'm sorry."
+    assert [s.id for s in st.signs] == ["me", "sorry"]
+    assert all(s.status in ("exact", "approximated") and s.source_url.startswith("https://") for s in st.signs)
+
+
+def test_statement_with_unknown_sign_raises(tmp_path):
+    from hand.signs import load_statement
+
+    p = tmp_path / "st.json"
+    p.write_text(json.dumps({"statements": [{"id": "x", "english": "X.", "gloss": "X", "signs": ["nope"]}],
+                             "signs": []}))
+    with pytest.raises(ValueError):
+        load_statement("x", path=p)
+
+
+def test_statement_lesson_learn_then_watch_then_sign_it_all():
+    from hand.signs import DEMO_STEP_S, TOGETHER_HOLD_S, StatementLesson, statement_from_text
+
+    # ME GOOD: neither sign has a movement check, so a steady matching hand passes on the hold alone.
+    lesson = StatementLesson(statement_from_text("I'm good"))
+    t = 0.0
+
+    def hold_until_passed(seconds):
+        nonlocal t
+        start_id = lesson.sign.id
+        while lesson.sign.id == start_id and not lesson.finished and t < 1000:
+            lesson.update(ok_result(), t)
+            t += 0.1
+        assert t - seconds >= 0
+
+    # Round 1: each sign on its own, normal hold.
+    assert lesson.heading.startswith('"I\'m good"  Learn sign 1 of 2: ME')
+    hold_until_passed(3.0)
+    assert lesson.sign.id == "good" and lesson.demo_sign(t) is None
+    hold_until_passed(3.0)
+
+    # Round 2 opens with the robot signing the whole statement; marking is paused meanwhile.
+    lesson.update(ok_result(), t)
+    assert lesson.demo_sign(t).id == "me"
+    assert lesson.demo_sign(t + DEMO_STEP_S).id == "good"
+    assert lesson.update(ok_result(), t + 0.5) == (0.0, False)
+    t += 2 * DEMO_STEP_S + 0.1
+    assert lesson.demo_sign(t) is None
+    assert "Now sign it all: [ME] GOOD" in lesson.heading
+    assert lesson.sign.hold_seconds == TOGETHER_HOLD_S
+    hold_until_passed(TOGETHER_HOLD_S)
+    assert "ME [GOOD]" in lesson.heading
+    hold_until_passed(TOGETHER_HOLD_S)
+
+    assert lesson.finished
+    card = lesson.scorecard()
+    assert "You signed the whole statement." in card
+    assert any(line.startswith("ME (I)") and "passed" in line for line in card)
+
+    lesson.restart()
+    assert not lesson.finished and lesson.sign.id == "me" and lesson.sign.hold_seconds == 3.0
+
+
+def test_statement_lesson_skip_and_back_cross_rounds():
+    from hand.signs import StatementLesson, load_statement
+
+    lesson = StatementLesson(load_statement())
+    lesson.skip()
+    lesson.skip()  # both learn signs skipped -> on to signing it all
+    assert lesson.round is lesson.together and lesson.sign.id == "me"
+    lesson.back()  # back from the first sign of round 2 -> last sign of round 1
+    assert lesson.round is lesson.learn and lesson.sign.id == "sorry"
+    assert "Whole statement: not finished." in lesson.scorecard()
+
+
+@pytest.mark.parametrize("text, gloss, unknown", [
+    ("I'm good, thank you!", "ME GOOD THANK-YOU", ()),
+    ("Hello, I want two please", "HELLO ME WANT TWO THANK-YOU", ()),
+    ("Sorry, my mistake", "SORRY MY", ("mistake",)),
+    ("You are great", "YOU GOOD", ()),
+    ("I AM 7", "ME SEVEN", ()),
+    ("Thanks a lot, goodbye", "THANK-YOU HELLO", ("lot",)),
+])
+def test_typed_statement_uses_phrasebook_signs_in_order(text, gloss, unknown):
+    from hand.signs import statement_from_text
+
+    st = statement_from_text(text)
+    assert st.gloss == gloss
+    assert st.unknown == unknown
+    assert st.english == text
+
+
+def test_typed_statement_with_no_known_word_is_none():
+    from hand.signs import statement_from_text
+
+    assert statement_from_text("What time is it?") is None
+    assert statement_from_text("   ") is None
+
+
+def test_typed_statement_is_capped_and_teachable():
+    from hand.signs import MAX_TYPED_SIGNS, StatementLesson, statement_from_text
+
+    st = statement_from_text("one two three five seven one two three five seven")
+    assert len(st.signs) == MAX_TYPED_SIGNS
+    lesson = StatementLesson(st)
+    assert lesson.sign.id == "one" and not lesson.finished
+
+
+def test_greetings_and_skipped_words_stay_visible():
+    from hand.signs import StatementLesson, statement_from_text
+
+    assert statement_from_text("good morning").gloss == "GOOD MORNING"
+    assert statement_from_text("Good afternoon, my name is").gloss == "GOOD AFTERNOON MY NAME"
+    st = statement_from_text("Good night, welcome")
+    assert st.gloss == "GOOD"
+    assert st.unknown == ("night (needs two hands)", "welcome (needs two hands)")
+    lesson = StatementLesson(st)
+    assert "night (needs two hands)" in lesson.note
+    lesson.skip()  # into round two: the note stays
+    assert "welcome" in lesson.note
+    assert "No sign yet for: night (needs two hands)" in lesson.scorecard()[1]

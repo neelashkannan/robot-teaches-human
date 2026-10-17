@@ -194,3 +194,30 @@ def test_fanning_a_finger_changes_spread_but_knuckle_stays_put(finger):
         lm[j] = lm[mcp] + rot @ (lm[j] - lm[mcp])
     v = landmarks_to_vec(lm, "Right", calib)
     assert v[FINGERS.index(finger) * 2 + 1] == pytest.approx(a / calib.max_spread[FINGERS.index(finger)], abs=0.02)
+
+
+def test_default_calibration_reads_parallel_fingers_as_no_spread():
+    """The default neutral comes from a canonical hand whose thumb is on the index side.
+
+    It used to sit on the little-finger side, which read a straight index as spread ~0.3 and failed
+    ONE with the index perfectly upright.
+    """
+    v = landmarks_to_vec(_make_hand(), "Right")
+    np.testing.assert_allclose(v[[3, 5, 7]], 0.0, atol=0.05)
+
+
+def test_default_calibration_thumb_range_is_realistic():
+    """A relaxed thumb bends ~15 degrees and a folded one ~80: they must read open and folded."""
+    # _make_hand bends only the bone pair that is measured by half the given curl, so pass double.
+    relaxed = landmarks_to_vec(_make_hand(curl={"thumb": np.deg2rad(2 * 15.0)}), "Right")
+    folded = landmarks_to_vec(_make_hand(curl={"thumb": np.deg2rad(2 * 80.0)}), "Right")
+    assert relaxed[0] <= 0.15
+    assert folded[0] >= 0.8
+
+
+def test_calibration_keeps_spread_neutral_when_the_open_hand_is_splayed():
+    """FIVE fans the fingers out; calibrating on a splayed open hand must not cancel that."""
+    splay = {"index": np.deg2rad(8.0), "ring": np.deg2rad(-7.0)}
+    calib = fit_calibration([_make_hand(spread=splay)], [_make_hand(curl={f: 2.0 for f in FINGERS})])
+    v = landmarks_to_vec(_make_hand(spread=splay), "Right", calib)
+    assert v[3] > 0.2 and v[7] < -0.2

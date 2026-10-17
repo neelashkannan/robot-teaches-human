@@ -24,19 +24,19 @@ def test_identical_passes():
 
 def test_one_finger_error_flags_only_that_finger():
     target = vec((0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0))
-    user = vec((0.0, 0.0), (0.2, 0.0), (0.0, 0.0), (0.0, 0.0))
+    user = vec((0.0, 0.0), (0.5, 0.0), (0.0, 0.0), (0.0, 0.0))
     r = compare(user, target)
     assert not r.all_ok
     assert r.worst == "index"
     assert not r.per_finger[1].ok
-    assert r.per_finger[1].curl_err_deg == pytest.approx(-0.2 * 90.0)
+    assert r.per_finger[1].curl_err_deg == pytest.approx(-0.5 * 90.0)
     assert all(r.per_finger[i].ok for i in (0, 2, 3))
 
 
 def test_worst_finger_choice():
-    # index curl off by 0.10, middle curl off by 0.20 -> worst is middle.
+    # index curl off by 0.40, middle curl off by 0.60 -> worst is middle.
     target = vec((0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0))
-    user = vec((0.0, 0.0), (0.1, 0.0), (0.2, 0.0), (0.0, 0.0))
+    user = vec((0.0, 0.0), (0.4, 0.0), (0.6, 0.0), (0.0, 0.0))
     r = compare(user, target)
     assert r.worst == "middle"
 
@@ -44,7 +44,7 @@ def test_worst_finger_choice():
 def test_spread_direction_message():
     # user needs to spread index more toward thumb side.
     target = vec((0.0, 0.0), (0.0, 0.5), (0.0, 0.0), (0.0, 0.0))
-    user = vec((0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0))
+    user = vec((0.0, 0.0), (0.0, -0.5), (0.0, 0.0), (0.0, 0.0))
     r = compare(user, target)
     assert r.worst == "index"
     assert "spread" in r.message.lower()
@@ -79,11 +79,11 @@ def test_tolerance_edge():
 
 
 def test_degrees_rounded_to_nearest_five():
-    # 0.23 * 90 = 20.7 degrees -> rounds to 20
+    # 0.46 * 90 = 41.4 degrees -> rounds to 40
     target = vec((0.0, 0.0), (0.0, 0.0), (0.0, 0.0), (0.0, 0.0))
-    user = vec((0.0, 0.0), (0.23, 0.0), (0.0, 0.0), (0.0, 0.0))
+    user = vec((0.0, 0.0), (0.46, 0.0), (0.0, 0.0), (0.0, 0.0))
     r = compare(user, target)
-    assert "20" in r.message
+    assert "40" in r.message
 
 
 def test_bad_input_returns_no_hand_detected():
@@ -141,3 +141,26 @@ def test_hold_not_done_with_no_ok():
     assert p == 0.0 and not done
     p, done = h.update(False, 10.0)
     assert p == 0.0 and not done
+
+
+def test_folded_finger_may_curl_further_and_its_spread_is_not_marked():
+    # ONE from data/signs.json: thumb folded (0.8), index up, middle and ring curled.
+    target = vec((0.8, 0.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0))
+    user = vec((1.0, -1.0), (0.05, 0.1), (1.0, 0.7), (1.0, 0.5))
+    assert compare(user, target).all_ok
+
+
+def test_folded_finger_not_curled_enough_still_fails():
+    target = vec((0.8, 0.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0))
+    user = vec((0.3, 0.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0))
+    r = compare(user, target)
+    assert r.worst == "thumb"
+    assert "curl" in r.message
+
+
+def test_thumb_out_is_judged_on_curl_not_spread():
+    target = vec((0.0, 0.6), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0))  # SEVEN
+    assert compare(vec((0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0)), target).all_ok
+    assert compare(vec((0.0, -1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0)), target).all_ok  # spread unmarked
+    r = compare(vec((1.0, 0.0), (0.0, 0.0), (1.0, 0.0), (1.0, 0.0)), target)  # thumb tucked in
+    assert r.worst == "thumb" and "straighten" in r.message

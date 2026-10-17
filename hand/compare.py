@@ -55,12 +55,18 @@ def _valid_vec(v) -> bool:
 # Webcam landmarks wobble more sideways than along the finger, and a fully curled finger cannot
 # spread at all (the teacher hand ignores it too), so spread is marked loosely and only on fingers
 # the sign holds out.
-SPREAD_TOL = 0.3
+SPREAD_TOL = 0.8
+# Curl is marked as "held out" vs "folded", not to the degree: on a webcam a straight finger already
+# reads ~0.3 of a curl on some frames and a curled one ~0.7 (see hand_pose defaults), so the
+# tolerance has to cover that wobble. A half-bent finger (~0.5) still fails either way.
+CURL_TOL = 0.35
 THUMB_TOL = 0.4
-SPREAD_IGNORED_ABOVE_CURL = 0.8
+# A target curl at or above this means "folded" (the sign table uses 0.8 for a folded thumb because
+# the robot thumb stops there). A folded finger may be curled further, its spread is not marked.
+FOLDED = 0.8
 
 
-def compare(user, target, tol: float = 0.15, spread_tol: float = SPREAD_TOL) -> Result:
+def compare(user, target, tol: float = CURL_TOL, spread_tol: float = SPREAD_TOL) -> Result:
     """Return per-finger marking, worst finger, and a one-line fix message.
 
     Signed errors are target - user in degrees: positive means the user needs
@@ -75,8 +81,12 @@ def compare(user, target, tol: float = 0.15, spread_tol: float = SPREAD_TOL) -> 
     u = clamp(user)
     t = clamp(target)
 
+    folded = t[0::2] >= FOLDED
     curl_err_norm = t[0::2] - u[0::2]
-    spread_err_norm = np.where(t[0::2] <= SPREAD_IGNORED_ABOVE_CURL, t[1::2] - u[1::2], 0.0)
+    curl_err_norm = np.where(folded, np.maximum(curl_err_norm, 0.0), curl_err_norm)
+    spread_err_norm = np.where(folded, 0.0, t[1::2] - u[1::2])
+    # The thumb's spread is not marked (see below), so it must not drive the fix message either.
+    spread_err_norm[0] = 0.0
 
     per_finger = []
     worst_idx = None

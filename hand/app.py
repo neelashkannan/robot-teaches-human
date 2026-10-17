@@ -4,12 +4,16 @@ Starts in BROWSE mode: move through every sign freely; marking and the hold ring
 block. `t` switches to PRACTICE (a pass advances, the end shows a scorecard).
 Keys: Right/n next, Left/b previous, 1-9 jump to a sign, r replay the teacher's pose slowly,
       f force-pass, t browse/practice, q quit;
+      s say a statement: type it, Enter teaches it with the phrasebook's signs (learn each sign,
+        watch the robot sign it all, sign it back); Enter on an empty line returns to the sign set;
       c calibrate (10 s: 2 s get ready, 3 s open hand, 2 s get ready, 3 s fist),
       m toggle the mirror hand (a second sim hand copying you),
       p drop the loose objects on the bench again.
 (Practice: n skips, b goes back, r repeats the sign; on the scorecard r goes again.)
 Frames stay in memory: nothing is saved, encoded or sent anywhere.
-Run: .venv/bin/python -m hand.app
+Run: .venv/bin/python -m hand.app        (--say "good morning" starts on that statement,
+                                          --statement starts on "I'm sorry." (ME SORRY),
+                                          --debug prints the raw finger angles twice a second)
 """
 from __future__ import annotations
 
@@ -21,8 +25,9 @@ import cv2
 import numpy as np
 
 from hand.compare import compare
-from hand.hand_pose import fit_calibration, hand_quality, landmarks_to_vec
-from hand.signs import CAPTION, Session, load_signs
+from hand.hand_pose import _raw_curl_all, _raw_spread_all, fit_calibration, hand_quality, landmarks_to_vec
+from hand.signs import (CAPTION, Session, StatementLesson, load_signs, load_statement, phrasebook_words,
+                        statement_from_text)
 from hand.teacher import Teacher
 from hand.vec import FINGERS
 from hand.vision import HandTracker
@@ -43,7 +48,9 @@ SMOOTH = 0.5  # weight of the new HandVec in the mirror hand's low-pass
 PASSED_BANNER_S = 1.5
 REPLAY_S = 2.5  # slow teacher replay: open hand -> sign
 HINT_NAV = "Right/n next   Left/b previous   1-9 jump   r replay   f force-pass   t browse/practice   q quit"
-HINT_OTHER = "c calibrate   m mirror hand   p drop objects"
+HINT_OTHER = "s say a statement   c calibrate   m mirror hand   p drop objects"
+MAX_TYPED_CHARS = 60
+TYPED_BANNER_S = 4.0
 # cv2.waitKeyEx arrow codes differ by platform (macOS Cocoa, Linux GTK/X11, Windows)
 KEY_RIGHT = {63235, 65363, 2555904}
 KEY_LEFT = {63234, 65361, 2424832}
@@ -154,16 +161,50 @@ def strip(width, lines, names=None, current=0, results=None) -> np.ndarray:
     return img
 
 
+def typing_lines(typed: str, words: list[str]) -> list[tuple]:
+    return [
+        ("Say a statement for the robot to teach, then press Enter (Esc cancels)", YELLOW, 0.7),
+        (f"> {typed}_", WHITE, 0.8),
+        ("Words with a sign: " + ", ".join(words), GREY, 0.5),
+        ("Other words are skipped and listed, never guessed. Signs follow your English word order.", GREY, 0.5),
+        ("Enter on an empty line goes back to the sign set.", GREY, 0.5),
+        (CAPTION, GREY, 0.5),
+    ]
+
+
+def debug_line(sign_id, world, vec, result) -> str:
+    """Raw angles (degrees) behind the HandVec, for tuning the default calibration and tolerances."""
+    curl = np.rad2deg(_raw_curl_all(world))
+    spread = np.rad2deg(_raw_spread_all(world))
+    fix = [f for f, fr in zip(FINGERS, result.per_finger) if not fr.ok] if result is not None else []
+    return (f"[{sign_id}] curl deg " + " ".join(f"{f[0].upper()}{c:4.0f}" for f, c in zip(FINGERS, curl))
+            + " | spread deg " + " ".join(f"{f[0].upper()}{s:4.0f}" for f, s in zip(FINGERS, spread))
+            + " | vec " + " ".join(f"{x:+.2f}" for x in vec)
+            + (" | fix " + ",".join(fix) if fix else " | ok"))
+
+
 def scorecard_image(session, width) -> np.ndarray:
     img = np.zeros((H + STRIP_H, width, 3), np.uint8)
     for k, line in enumerate(session.scorecard()):
         cv2.putText(img, line, (30, 50 + 36 * k), cv2.FONT_HERSHEY_SIMPLEX, 0.8, WHITE, 2)
-    cv2.putText(img, "r: go again    b: back    q: quit", (30, H + 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, YELLOW, 2)
+    cv2.putText(img, "r: go again    b: back    s: say a statement    q: quit", (30, H + 40),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, YELLOW, 2)
     cv2.putText(img, CAPTION, (30, H + 80), cv2.FONT_HERSHEY_SIMPLEX, 0.6, GREY, 1)
     return img
 
 
 def main() -> int:
+    argv = sys.argv[1:]
+    debug = "--debug" in argv
+    debug_next = 0.0
+    say = argv[argv.index("--say") + 1] if "--say" in argv[:-1] else None
+    statement = statement_from_text(say) if say else None
+    if say and statement is None:
+        print(f"No word in {say!r} has a sign yet; starting on the default statement.", file=sys.stderr)
+    if statement is None and ("--statement" in argv or say):
+        statement = load_statement()
+    words = phrasebook_words()
+    typing = None  # the statement being typed, or None
     signs = load_signs()
     cap = cv2.VideoCapture(0)
     ok, frame = cap.read()
@@ -173,7 +214,7 @@ def main() -> int:
         return 1
     tracker = HandTracker()
     teacher = PoseView()
-    session = Session(signs, browse=True)
+    session = StatementLesson(statement) if statement else Session(signs, browse=True)
     replay_t0 = None  # start time of a slow teacher replay (key r)
     mirror = None
     calib = None
@@ -181,7 +222,7 @@ def main() -> int:
     cal_frames = {"open": [], "fist": []}
     smooth_vec = None
     trail = []  # recent wrist points (x, y, t) drawn for moving signs
-    banner, banner_until = "", 0.0
+    banner, banner_until, banner_color = "", 0.0, GREEN
     fps, t_prev, t0 = 0.0, time.time(), time.time()
     fps_samples = []
 
@@ -214,13 +255,16 @@ def main() -> int:
                 print(f"calibrated from {len(cal_frames['open'])} open and {len(cal_frames['fist'])} fist frames")
 
         if session.finished:
-            cv2.imshow("Robot Teaches Human",
-                       scorecard_image(session, int(frame.shape[1] * H / frame.shape[0]) + H))
+            card = scorecard_image(session, int(frame.shape[1] * H / frame.shape[0]) + H)
+            if typing is not None:
+                box = strip(card.shape[1], typing_lines(typing, words))
+                card = np.vstack([card[:card.shape[0] - box.shape[0]], box])
+            cv2.imshow("Robot Teaches Human", card)
             progress, result = 0.0, None
         else:
             sign = session.sign
             result = compare(vec, sign.target) if vec is not None and usable else None
-            if step_text is None:
+            if step_text is None and typing is None:
                 was = sign.gloss
                 wrist, size = None, None
                 if lm is not None and usable:
@@ -230,17 +274,22 @@ def main() -> int:
                     trail.append((int(lm[0][0] * frame.shape[1]), int(lm[0][1] * frame.shape[0]), now))
                 progress, done = session.update(result, now, wrist, size)
                 if done:
-                    banner, banner_until = f"Passed: {was}", now + PASSED_BANNER_S
+                    banner, banner_until, banner_color = f"Passed: {was}", now + PASSED_BANNER_S, GREEN
                     progress = 0.0
             else:
                 progress = 0.0
+            if debug and vec is not None and now >= debug_next:
+                print(debug_line(sign.id, tracker.world, vec, result), flush=True)
+                debug_next = now + 0.5
+
+        demo = session.demo_sign(now) if not session.finished else None
 
         if not session.finished:
             sign = session.sign
             left = cv2.resize(frame, (int(frame.shape[1] * H / frame.shape[0]), H))
             if lm is not None:
                 draw_landmarks(left, lm)
-                if result is not None and step_text is None:
+                if result is not None and step_text is None and demo is None:
                     draw_marking(left, lm, result)
             if session.move is not None:
                 trail[:] = [p for p in trail if now - p[2] < 2.0]
@@ -259,15 +308,15 @@ def main() -> int:
             label(left, f"{fps:.0f} fps", 10, H - 12, 0.6)
             draw_hold_ring(left, progress)
 
-            pose = sign.target
-            if replay_t0 is not None:
+            pose = demo.target if demo is not None else sign.target
+            if replay_t0 is not None and demo is None:
                 p = (now - replay_t0) / REPLAY_S
                 if p >= 1.0:
                     replay_t0 = None
                 else:
                     pose = sign.target * (p * p * (3 - 2 * p))  # smoothstep from the open hand
             right = teacher.show(pose).copy()
-            label(right, "Teacher")
+            label(right, f"Teacher: {demo.gloss}" if demo is not None else "Teacher")
             panels = [left, right]
             if mirror is not None:
                 if vec is not None:
@@ -279,8 +328,10 @@ def main() -> int:
 
             if step_text:
                 msg, msg_color = "Calibrating: keep your hand in view", YELLOW
+            elif demo is not None:
+                msg, msg_color = f"Watch the robot sign the whole statement: {demo.gloss}", YELLOW
             elif now < banner_until:
-                msg, msg_color = banner, GREEN
+                msg, msg_color = banner, banner_color
             elif lm is not None and not usable:
                 msg, msg_color = f"Marking paused: {reason}", YELLOW
             elif result is None:
@@ -291,11 +342,13 @@ def main() -> int:
                 msg, msg_color = f"Hold it... {progress * session.hold.seconds:.1f} / {session.hold.seconds:.1f} s", GREEN
             else:
                 msg, msg_color = result.message, YELLOW
-            info = strip(row.shape[1], [
-                (f"Sign {session.i + 1} of {len(session.signs)}: {sign.gloss}   "
-                 f"[{'BROWSE' if session.browse else 'PRACTICE'}]", WHITE, 0.8),
+            heading = session.heading if isinstance(session, StatementLesson) else (
+                f"{session.heading}   [{'BROWSE' if session.browse else 'PRACTICE'}]")
+            info = strip(row.shape[1], typing_lines(typing, words) if typing is not None else [
+                (heading, WHITE, 0.8),
                 (sign.instruction, WHITE, 0.6),
-                (f"Status: {sign.status_label}   (handshape source: {sign.source_host})",
+                (f"Status: {sign.status_label}   (handshape source: {sign.source_host})"
+                 + (f"     {session.note}" if session.note else ""),
                  GREEN if sign.status == "exact" else ORANGE, 0.55),
                 (msg, msg_color, 0.7),
                 (CAPTION, GREY, 0.5),
@@ -311,8 +364,30 @@ def main() -> int:
 
         k = cv2.waitKeyEx(1)
         ch = chr(k) if 0 <= k < 128 else ""
-        if ch == "q":
+        if typing is not None:
+            if k in (13, 10):
+                if not typing.strip():
+                    session = Session(signs, browse=True)
+                    banner, banner_until = "", 0.0
+                elif (typed := statement_from_text(typing)) is None:
+                    banner, banner_until, banner_color = ("None of those words has a sign yet.",
+                                                          now + TYPED_BANNER_S, RED)
+                else:
+                    session = StatementLesson(typed)
+                    banner, banner_until, banner_color = (
+                        (f"No sign yet for: {', '.join(typed.unknown)} (skipped)", now + TYPED_BANNER_S, ORANGE)
+                        if typed.unknown else ("", 0.0, GREEN))
+                typing = None
+            elif k == 27:
+                typing = None
+            elif k in (8, 127):
+                typing = typing[:-1]
+            elif 32 <= k <= 126 and len(typing) < MAX_TYPED_CHARS:
+                typing += ch
+        elif ch == "q":
             break
+        elif ch == "s":
+            typing = ""
         elif ch == "c":
             cal_start = time.time()
             cal_frames = {"open": [], "fist": []}

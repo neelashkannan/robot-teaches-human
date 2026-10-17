@@ -17,6 +17,7 @@ from hand.vec import HIGH, LOW, N  # noqa: E402
 STATUSES = {"exact", "approximated", "not_representable", "unverified"}
 USABLE = {"exact", "approximated"}
 KEYS = {"id", "gloss", "source_url", "status", "instruction", "target", "hold_seconds", "movement", "notes"}
+STATEMENT_KEYS = {"id", "english", "gloss", "signs", "notes"}
 MAX_INSTRUCTION_WORDS = 12
 MIN_USABLE, MAX_USABLE = 5, 6
 NEAR_IDENTICAL = 0.3  # max abs difference across the 8 numbers below which two demo signs are too alike
@@ -29,20 +30,10 @@ def fail(msg: str) -> None:
     errors.append(msg)
 
 
-def main() -> int:
-    path = ROOT / "data" / "signs.json"
-    try:
-        signs = json.loads(path.read_text())
-    except (OSError, json.JSONDecodeError) as e:
-        print(f"FAIL: cannot read {path}: {e}")
-        return 1
-    if not isinstance(signs, list):
-        print("FAIL: signs.json must be a list")
-        return 1
-
-    seen: set[str] = set()
+def check_entries(entries: list, seen: set[str]) -> list[dict]:
+    """Per-sign checks; returns the usable (exact/approximated) entries. Ids must be unique across files."""
     usable: list[dict] = []
-    for i, s in enumerate(signs):
+    for i, s in enumerate(entries):
         sid = s.get("id", f"#{i}") if isinstance(s, dict) else f"#{i}"
         if not isinstance(s, dict):
             fail(f"{sid}: not an object")
@@ -91,6 +82,56 @@ def main() -> int:
                 fail(f"{sid}: non-unverified sign needs a source_url on {KNOWN_SOURCES}")
         if s["status"] in USABLE and ok_target:
             usable.append(s)
+    return usable
+
+
+def check_statements(usable: list[dict], seen: set[str]) -> str:
+    """data/statements.json: its own signs pass the same checks, and every statement's signs are shown."""
+    path = ROOT / "data" / "statements.json"
+    if not path.exists():
+        return "no statements.json"
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        fail(f"cannot read {path}: {e}")
+        return "statements unreadable"
+    shown = {s["id"] for s in usable + check_entries(raw.get("signs", []), seen)}
+    statements = raw.get("statements", [])
+    for st in statements:
+        sid = st.get("id", "?") if isinstance(st, dict) else "?"
+        if not isinstance(st, dict) or set(st) != STATEMENT_KEYS:
+            fail(f"statement {sid}: keys must be {sorted(STATEMENT_KEYS)}")
+            continue
+        if not isinstance(st["signs"], list) or not st["signs"]:
+            fail(f"statement {sid}: signs must be a non-empty list of sign ids")
+            continue
+        for x in st["signs"]:
+            if x not in shown:
+                fail(f"statement {sid}: sign {x!r} is not an exact/approximated sign in either file")
+    words = raw.get("words", {})
+    for w, x in words.items():
+        if not isinstance(w, str) or w != w.strip().lower() or not w:
+            fail(f"phrasebook word {w!r}: must be lower case with no outer spaces")
+        if x not in shown:
+            fail(f"phrasebook word {w!r}: sign {x!r} is not an exact/approximated sign in either file")
+    if not all(isinstance(w, str) for w in raw.get("skip_words", [])):
+        fail("skip_words must be a list of strings")
+    return f"{len(statements)} statement(s), {len(words)} phrasebook words"
+
+
+def main() -> int:
+    path = ROOT / "data" / "signs.json"
+    try:
+        signs = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"FAIL: cannot read {path}: {e}")
+        return 1
+    if not isinstance(signs, list):
+        print("FAIL: signs.json must be a list")
+        return 1
+
+    seen: set[str] = set()
+    usable = check_entries(signs, seen)
 
     if not MIN_USABLE <= len(usable) <= MAX_USABLE:
         fail(f"usable (exact/approximated) signs: {len(usable)}, want {MIN_USABLE} to {MAX_USABLE}")
@@ -101,6 +142,8 @@ def main() -> int:
             if d < NEAR_IDENTICAL:
                 fail(f"{a['id']} and {b['id']}: targets near-identical (max diff {d:.2f} < {NEAR_IDENTICAL})")
 
+    statement_note = check_statements(usable, seen)
+
     pose_note = "pose-load check skipped (hand/teacher.py not found)"
     if (ROOT / "hand" / "teacher.py").exists():
         pose_note = "pose-load check skipped (not implemented yet, teacher.py exists)"
@@ -109,7 +152,7 @@ def main() -> int:
     for s in signs:
         if isinstance(s, dict):
             counts[s.get("status")] = counts.get(s.get("status"), 0) + 1
-    print(f"{len(signs)} signs, usable {len(usable)}, statuses {counts}; {pose_note}")
+    print(f"{len(signs)} signs, usable {len(usable)}, statuses {counts}; {statement_note}; {pose_note}")
     if errors:
         for e in errors:
             print("FAIL:", e)

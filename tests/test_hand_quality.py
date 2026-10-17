@@ -68,5 +68,5 @@ def test_thumb_is_marked_loosely_and_without_spread():
 def test_other_fingers_keep_the_strict_tolerance():
     target = np.array([0.8, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0])
     off = target.copy()
-    off[2] = 0.35  # index off by 0.35: still a fail
+    off[2] = 0.4  # index off by 0.4: still a fail (finger tolerance 0.35, measured on webcam; thumb 0.4)
     assert not compare(off, target).per_finger[1].ok
