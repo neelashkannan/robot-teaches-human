@@ -39,10 +39,10 @@ def test_bad_target_raises_and_out_of_range_is_clamped(tmp_path):
     assert list(load_signs(p)[0].target[:4]) == [1.0, 1.0, 0.0, -1.0]
 
 
-def test_movement_sign_is_labelled_handshape_only():
+def test_movement_sign_is_labelled_with_its_movement_check():
     by_id = {s.id: s for s in load_signs()}
-    assert "handshape only" in by_id["sorry"].status_label
-    assert "handshape only" not in by_id["one"].status_label
+    assert "wrist circle" in by_id["sorry"].status_label
+    assert "wrist circle" not in by_id["one"].status_label
     assert by_id["one"].source_host == "www.british-sign.co.uk"
 
 
@@ -97,3 +97,66 @@ def test_finish_back_repeat_restart():
     assert s.i == 0 and all(r is None for r in s.result.values())
     s.back()
     assert s.i == 0
+
+
+def test_force_pass_clicks_through_every_sign():
+    from hand.signs import Session, load_signs
+    s = Session(load_signs())
+    n = len(s.signs)
+    for _ in range(n):
+        s.force_pass()
+    assert s.finished
+    assert all(r == "passed" for r in s.result.values())
+
+
+def make_set(tmp_path, n):
+    p = tmp_path / "s.json"
+    p.write_text(json.dumps([entry(f"s{k}", "exact") for k in range(n)]))
+    return load_signs(p)
+
+
+@pytest.mark.parametrize("n", [1, 2, 6, 12])
+def test_browse_next_prev_jump_wrap(tmp_path, n):
+    s = Session(make_set(tmp_path, n), browse=True)
+    seen = [s.i]
+    for _ in range(n):
+        s.next()
+        seen.append(s.i)
+    assert seen == [k % n for k in range(n + 1)]  # visits every sign, wraps back to the first
+    s.prev()
+    assert s.i == n - 1  # previous from the first wraps to the last
+    for pos in range(1, n + 1):
+        assert s.jump(pos) and s.i == pos - 1
+    assert not s.jump(0) and not s.jump(n + 1) and s.i == n - 1  # bad position: no move
+    assert not s.finished
+
+
+def test_browse_force_pass_wraps_and_never_finishes(tmp_path):
+    s = Session(make_set(tmp_path, 3), browse=True)
+    for _ in range(7):
+        s.force_pass()
+    assert not s.finished and s.i == 7 % 3
+    assert all(r == "passed" for r in s.result.values())
+
+
+def test_browse_pass_is_recorded_but_does_not_move(tmp_path):
+    signs = load_signs()
+    s = Session(signs, browse=True)
+    first = s.sign
+    t, done = run_frames(s, first.target, 0.0, 4.0)
+    assert done and s.result[first.id] == "passed" and s.sign is first  # stays put
+    t, done = run_frames(s, first.target, t, 4.0)
+    assert not done  # holding again does not re-announce a pass
+
+
+def test_toggle_mode_and_practice_still_advances(tmp_path):
+    signs = load_signs()
+    s = Session(signs, browse=True)
+    s.next()
+    s.toggle_mode()
+    assert not s.browse and s.i == 1
+    cur = s.sign
+    run_frames(s, cur.target, 0.0, 4.0)
+    assert s.result[cur.id] == "passed" and s.sign is not cur  # practice advances
+    s.toggle_mode()
+    assert s.browse

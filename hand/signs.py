@@ -1,7 +1,7 @@
 """BSL signs for the app: loading data/signs.json and the pass / skip / scorecard bookkeeping.
 
 Only signs with status `exact` or `approximated` are loaded. `unverified` and `not_representable`
-are never shown. A sign's `movement` template is not checked (stretch); only the handshape is.
+are never shown. A sign with a `movement` template (circle) is also checked on the wrist path: see hand.movement.
 """
 from __future__ import annotations
 
@@ -13,13 +13,15 @@ from pathlib import Path
 import numpy as np
 
 from hand.compare import Hold, Result
+from hand.movement import make_check
 from hand.vec import FINGERS, N, clamp
 
 REPO = Path(__file__).resolve().parent.parent
 DEFAULT_SIGNS = REPO / "data" / "signs.json"
 SHOWN_STATUSES = ("exact", "approximated")
+MOVE_HOLD_S = 0.5
 
-CAPTION = "Checks handshape only, not location, movement or facial expression."
+CAPTION = "Checks handshape, and wrist circles where a sign has them. Not location, palm direction or facial expression."
 STATUS_LABEL = {"exact": "exact", "approximated": "approximated: closest this hand can do"}
 
 
@@ -38,7 +40,7 @@ class Sign:
     def status_label(self) -> str:
         label = STATUS_LABEL[self.status]
         if self.movement:
-            label += "; handshape only, movement not checked"
+            label += "; handshape + wrist circle checked"
         return label
 
     @property
@@ -71,15 +73,19 @@ def load_signs(path=DEFAULT_SIGNS) -> list[Sign]:
 class Session:
     """One run through the sign set: the current sign, the hold timer, results, off-finger counts."""
 
-    def __init__(self, signs: list[Sign]):
+    def __init__(self, signs: list[Sign], browse: bool = False):
+        """browse=True: move freely (arrows, jump), wrap at the ends, a pass is recorded but never
+        advances or finishes the run. browse=False is the practice flow: a pass advances, the end
+        shows the scorecard."""
         if not signs:
             raise ValueError("no signs to teach")
         self.signs = signs
+        self.browse = browse
         self.i = 0
         self.finished = False
         self.result: dict[str, str | None] = {s.id: None for s in signs}  # passed / skipped / None
         self.off = {s.id: Counter() for s in signs}  # finger -> frames it was marked wrong
-        self.hold = Hold(signs[0].hold_seconds)
+        self._go(0)
 
     @property
     def sign(self) -> Sign:
@@ -88,27 +94,69 @@ class Session:
     def _go(self, i: int) -> None:
         self.i = i
         self.finished = False
-        self.hold = Hold(self.sign.hold_seconds)
+        self.move = make_check(self.sign.movement)
+        # a moving sign is held only briefly once the movement is complete
+        self.hold = Hold(MOVE_HOLD_S if self.move else self.sign.hold_seconds)
 
-    def update(self, result: Result | None, now: float) -> tuple[float, bool]:
-        """Feed one frame's marking (None = no hand). Returns (hold progress, passed this frame)."""
+    def update(self, result: Result | None, now: float, wrist=None, hand_size=None) -> tuple[float, bool]:
+        """Feed one frame's marking (None = no hand) and, for moving signs, the wrist path point.
+
+        Returns (progress, passed this frame). For a moving sign progress is the movement progress
+        until the handshape holds, then the short hold.
+        """
         if self.finished:
             return 0.0, False
+        moved = True
+        if self.move is not None:
+            self.move.update(now, wrist if result is not None else None, hand_size)
+            moved = self.move.done
         if result is not None and not result.all_ok:
             for finger, fr in zip(FINGERS, result.per_finger):
                 if not fr.ok:
                     self.off[self.sign.id][finger] += 1
-        progress, done = self.hold.update(bool(result is not None and result.all_ok), now)
+        progress, done = self.hold.update(bool(result is not None and result.all_ok and moved), now)
+        if self.move is not None and not done and progress == 0.0:
+            progress = self.move.progress
+        if done and self.browse:
+            first_time = self.result[self.sign.id] != "passed"
+            self.result[self.sign.id] = "passed"
+            self._go(self.i)  # restart the hold; stay on this sign
+            return progress, first_time
         if done:
             self.result[self.sign.id] = "passed"
             self.advance()
         return progress, done
 
+    def next(self) -> None:
+        """Free movement (wraps), never marks a result."""
+        self._go((self.i + 1) % len(self.signs))
+
+    def prev(self) -> None:
+        self._go((self.i - 1) % len(self.signs))
+
+    def jump(self, position: int) -> bool:
+        """Go to a sign by its 1-based position; False (and no move) if there is no such sign."""
+        if not 1 <= position <= len(self.signs):
+            return False
+        self._go(position - 1)
+        return True
+
+    def toggle_mode(self) -> None:
+        self.browse = not self.browse
+        self._go(self.i)
+
     def advance(self) -> None:
-        if self.i + 1 >= len(self.signs):
+        if self.browse:
+            self._go((self.i + 1) % len(self.signs))
+        elif self.i + 1 >= len(self.signs):
             self.finished = True
         else:
             self._go(self.i + 1)
+
+    def force_pass(self) -> None:
+        """Mark the current sign passed without matching it (to click through every sign)."""
+        self.result[self.sign.id] = "passed"
+        self.advance()
 
     def skip(self) -> None:
         if self.result[self.sign.id] is None:

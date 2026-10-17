@@ -1,9 +1,13 @@
 """One window: selfie webcam with per-finger marking | teacher hand showing the sign (| mirror hand).
 
-Keys: q quit, n skip to next sign, b back, r repeat the sign (restart all on the scorecard),
+Starts in BROWSE mode: move through every sign freely; marking and the hold ring run but never
+block. `t` switches to PRACTICE (a pass advances, the end shows a scorecard).
+Keys: Right/n next, Left/b previous, 1-9 jump to a sign, r replay the teacher's pose slowly,
+      f force-pass, t browse/practice, q quit;
       c calibrate (10 s: 2 s get ready, 3 s open hand, 2 s get ready, 3 s fist),
       m toggle the mirror hand (a second sim hand copying you),
       p drop the loose objects on the bench again.
+(Practice: n skips, b goes back, r repeats the sign; on the scorecard r goes again.)
 Frames stay in memory: nothing is saved, encoded or sent anywhere.
 Run: .venv/bin/python -m hand.app
 """
@@ -23,7 +27,7 @@ from hand.vec import FINGERS
 from hand.vision import HandTracker
 
 H = 480
-STRIP_H = 130
+STRIP_H = 200
 TIP = {"thumb": 4, "index": 8, "middle": 12, "ring": 16}  # MediaPipe fingertip landmarks
 GREEN, RED, YELLOW, WHITE, GREY = (0, 220, 0), (0, 0, 255), (0, 255, 255), (255, 255, 255), (150, 150, 150)
 ORANGE = (0, 165, 255)
@@ -36,6 +40,12 @@ CAL_STEPS = [
 ]
 SMOOTH = 0.5  # weight of the new HandVec in the mirror hand's low-pass
 PASSED_BANNER_S = 1.5
+REPLAY_S = 2.5  # slow teacher replay: open hand -> sign
+HINT_NAV = "Right/n next   Left/b previous   1-9 jump   r replay   f force-pass   t browse/practice   q quit"
+HINT_OTHER = "c calibrate   m mirror hand   p drop objects"
+# cv2.waitKeyEx arrow codes differ by platform (macOS Cocoa, Linux GTK/X11, Windows)
+KEY_RIGHT = {63235, 65363, 2555904}
+KEY_LEFT = {63234, 65361, 2424832}
 
 
 class PoseView:
@@ -104,11 +114,32 @@ def draw_hold_ring(img, progress) -> None:
         cv2.ellipse(img, c, (32, 32), -90, 0, 360 * progress, GREEN, 6)
 
 
-def strip(width, lines) -> np.ndarray:
-    """Info bar under the panels: lines are (text, color, scale)."""
-    img = np.zeros((STRIP_H, width, 3), np.uint8)
+def strip(width, lines, names=None, current=0, results=None) -> np.ndarray:
+    """Info bar under the panels: lines are (text, color, scale); names is the strip of all signs
+    (current one highlighted, passed ones green), wrapped onto as many rows as it needs."""
+    rows = []  # list of lists of (text, x, w)
+    x, row = 10, []
+    for k, name in enumerate(names or []):
+        (tw, _), _ = cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
+        if x + tw + 14 > width and row:
+            rows.append(row)
+            x, row = 10, []
+        row.append((k, name, x, tw))
+        x += tw + 24
+    if row:
+        rows.append(row)
+    img = np.zeros((max(STRIP_H, 26 * len(lines) + 12 + 26 * len(rows)), width, 3), np.uint8)
     for k, (text, color, scale) in enumerate(lines):
         label(img, text, 10, 28 + 26 * k, scale, color)
+    y0 = 26 * len(lines) + 16
+    for r, row in enumerate(rows):
+        y = y0 + 26 * r + 14
+        for k, name, x, tw in row:
+            if k == current:
+                cv2.rectangle(img, (x - 5, y - 16), (x + tw + 5, y + 6), YELLOW, -1)
+                cv2.putText(img, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1)
+            else:
+                cv2.putText(img, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, GREEN if results and results[k] == "passed" else GREY, 1)
     return img
 
 
@@ -131,12 +162,14 @@ def main() -> int:
         return 1
     tracker = HandTracker()
     teacher = PoseView()
-    session = Session(signs)
+    session = Session(signs, browse=True)
+    replay_t0 = None  # start time of a slow teacher replay (key r)
     mirror = None
     calib = None
     cal_start = None  # time when calibration began
     cal_frames = {"open": [], "fist": []}
     smooth_vec = None
+    trail = []  # recent wrist points (x, y, t) drawn for moving signs
     banner, banner_until = "", 0.0
     fps, t_prev, t0 = 0.0, time.time(), time.time()
     fps_samples = []
@@ -175,7 +208,13 @@ def main() -> int:
             result = compare(vec, sign.target) if vec is not None else None
             if step_text is None:
                 was = sign.gloss
-                progress, done = session.update(result, now)
+                wrist, size = None, None
+                if lm is not None:
+                    aspect = frame.shape[1] / frame.shape[0]  # image space with square units
+                    wrist = (lm[0][0] * aspect, lm[0][1])
+                    size = float(np.hypot((lm[9][0] - lm[0][0]) * aspect, lm[9][1] - lm[0][1]))
+                    trail.append((int(lm[0][0] * frame.shape[1]), int(lm[0][1] * frame.shape[0]), now))
+                progress, done = session.update(result, now, wrist, size)
                 if done:
                     banner, banner_until = f"Passed: {was}", now + PASSED_BANNER_S
                     progress = 0.0
@@ -189,6 +228,12 @@ def main() -> int:
                 draw_landmarks(left, lm)
                 if result is not None and step_text is None:
                     draw_marking(left, lm, result)
+            if session.move is not None:
+                trail[:] = [p for p in trail if now - p[2] < 2.0]
+                for a, b in zip(trail, trail[1:]):
+                    cv2.line(left, a[:2], b[:2], ORANGE, 3)
+            else:
+                trail.clear()
             if step_text:
                 label(left, step_text, 10, 28, 0.8, YELLOW)
             elif vec is None:
@@ -198,7 +243,14 @@ def main() -> int:
             label(left, f"{fps:.0f} fps", 10, H - 12, 0.6)
             draw_hold_ring(left, progress)
 
-            right = teacher.show(sign.target).copy()
+            pose = sign.target
+            if replay_t0 is not None:
+                p = (now - replay_t0) / REPLAY_S
+                if p >= 1.0:
+                    replay_t0 = None
+                else:
+                    pose = sign.target * (p * p * (3 - 2 * p))  # smoothstep from the open hand
+            right = teacher.show(pose).copy()
             label(right, "Teacher")
             panels = [left, right]
             if mirror is not None:
@@ -215,18 +267,23 @@ def main() -> int:
                 msg, msg_color = banner, GREEN
             elif result is None:
                 msg, msg_color = "Show your hand to the camera", RED
+            elif result.all_ok and session.move is not None and not session.move.done:
+                msg, msg_color = f"Handshape good. Now draw circles with your hand: {session.move.progress * 100:.0f}%", YELLOW
             elif result.all_ok:
-                msg, msg_color = f"Hold it... {progress * sign.hold_seconds:.1f} / {sign.hold_seconds:.0f} s", GREEN
+                msg, msg_color = f"Hold it... {progress * session.hold.seconds:.1f} / {session.hold.seconds:.1f} s", GREEN
             else:
                 msg, msg_color = result.message, YELLOW
             info = strip(row.shape[1], [
-                (f"Sign {session.i + 1} of {len(session.signs)}: {sign.gloss}", WHITE, 0.8),
+                (f"Sign {session.i + 1} of {len(session.signs)}: {sign.gloss}   "
+                 f"[{'BROWSE' if session.browse else 'PRACTICE'}]", WHITE, 0.8),
                 (sign.instruction, WHITE, 0.6),
                 (f"Status: {sign.status_label}   (handshape source: {sign.source_host})",
                  GREEN if sign.status == "exact" else ORANGE, 0.55),
                 (msg, msg_color, 0.7),
-                (CAPTION + "    n skip  b back  r repeat  c calibrate  m mirror  p drop  q quit", GREY, 0.5),
-            ])
+                (CAPTION, GREY, 0.5),
+                (HINT_NAV, YELLOW, 0.5),
+                (HINT_OTHER, YELLOW, 0.5),
+            ], [g.id.upper() for g in session.signs], session.i, [session.result[g.id] for g in session.signs])
             cv2.imshow("Robot Teaches Human", np.vstack([row, info]))
 
         dt = time.time() - t_prev
@@ -234,24 +291,38 @@ def main() -> int:
         fps = 0.9 * fps + 0.1 / dt if fps else 1 / dt
         fps_samples.append(1 / dt)
 
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
+        k = cv2.waitKeyEx(1)
+        ch = chr(k) if 0 <= k < 128 else ""
+        if ch == "q":
             break
-        elif key == ord("c"):
+        elif ch == "c":
             cal_start = time.time()
             cal_frames = {"open": [], "fist": []}
-        elif key == ord("m"):
+        elif ch == "m":
             mirror = PoseView() if mirror is None else None
-        elif key == ord("p"):
+        elif ch == "p":
             teacher.drop()
             if mirror is not None:
                 mirror.drop()
-        elif key == ord("n") and not session.finished:
-            session.skip()
-        elif key == ord("b"):
-            session.back()
-        elif key == ord("r"):
-            session.restart() if session.finished else session.repeat()
+        elif ch == "t":
+            session.toggle_mode()
+        elif session.finished:  # scorecard (practice mode)
+            if ch == "r":
+                session.restart()
+            elif ch == "b" or k in KEY_LEFT:
+                session.back()
+        else:
+            if ch == "f":
+                session.force_pass()
+            elif ch == "n" or k in KEY_RIGHT:
+                session.next() if session.browse or k in KEY_RIGHT else session.skip()
+            elif ch == "b" or k in KEY_LEFT:
+                session.prev() if session.browse or k in KEY_LEFT else session.back()
+            elif ch.isdigit() and ch != "0":
+                session.jump(int(ch))
+            elif ch == "r":
+                replay_t0 = time.time()
+                session.repeat()
 
     cap.release()
     tracker.close()
